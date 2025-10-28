@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import jwt
 from django.conf import settings
 from usuarios.models import *
+from models import ComparacionesGrupales, ComparacionesIndividuales
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -160,3 +161,52 @@ def perfil_usuario(request):
         
     except Usuarios.DoesNotExist:
         return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+@require_http_methods(["GET"])
+def listar_comparaciones_individuales(request, usuario_id):
+    """Listar comparaciones individuales de un usuario específico"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener todas las comparaciones individuales del usuario
+        comparaciones = ComparacionesIndividuales.objects.filter(
+            usuario_id=usuario_id  # Ahora usa el parámetro de la URL
+        ).values('id', 'nombre_comparacion', 'fecha_creacion').order_by('-fecha_creacion')
+        
+        return JsonResponse({
+            'comparaciones': list(comparaciones)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def listar_comparaciones_grupales(request, usuario_id):
+    """Listar comparaciones grupales de un usuario específico"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener todas las comparaciones grupales del usuario
+        comparaciones = ComparacionesGrupales.objects.filter(
+            usuario_id=usuario_id  # Ahora usa el parámetro de la URL
+        ).values('id', 'nombre_comparacion', 'fecha_creacion').order_by('-fecha_creacion')
+        
+        return JsonResponse({
+            'comparaciones': list(comparaciones)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
