@@ -240,4 +240,4 @@ python manage.py inspectdb > models.py
 
 
 -- Crear un archivo de requerimientos para el proyecto
-pip freeze > requirements.txt   
+pip freeze > requirements.txt
