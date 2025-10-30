@@ -213,9 +213,6 @@ def listar_comparaciones_grupales(request, usuario_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-    
-
-# ============= CREAR COMPARACIÓN GRUPAL =============
 
 @require_http_methods(["POST"])
 def crear_comparacion_grupal(request):
@@ -229,31 +226,36 @@ def crear_comparacion_grupal(request):
         return JsonResponse(payload, status=401)
     
     try:
-        data = json.loads(request.body)
+        # Obtener datos del FormData
+        usuario_id = request.POST.get('usuario_id')
+        modelo_ia_id = request.POST.get('modelo_ia_id')
+        lenguaje_id = request.POST.get('lenguaje_id')
+        nombre_comparacion = request.POST.get('nombre_comparacion')
+        estado = request.POST.get('estado', 'Reciente')
         
-        # Validar campos requeridos
-        campos_requeridos = ['usuario_id', 'modelo_ia_id', 'lenguaje_id']
-        for campo in campos_requeridos:
-            if campo not in data:
-                return JsonResponse({'error': f'Campo {campo} es requerido'}, status=400)
+        # Validaciones
+        if not all([usuario_id, modelo_ia_id, lenguaje_id]):
+            return JsonResponse({
+                'error': 'Faltan campos requeridos: usuario_id, modelo_ia_id, lenguaje_id'
+            }, status=400)
         
+        # Crear la comparación grupal
         comparacion = ComparacionesGrupales.objects.create(
-            usuario_id=data['usuario_id'],
-            modelo_ia_id=data['modelo_ia_id'],
-            lenguaje_id=data['lenguaje_id'],
-            nombre_comparacion=data.get('nombre_comparacion'),
-            estado=data.get('estado', 'Reciente'),
+            usuario_id=usuario_id,
+            modelo_ia_id=modelo_ia_id,
+            lenguaje_id=lenguaje_id,
+            nombre_comparacion=nombre_comparacion,
+            estado=estado,
             fecha_creacion=timezone.now()
         )
         
         return JsonResponse({
             'mensaje': 'Comparación grupal creada exitosamente',
             'id': comparacion.id,
-            'nombre_comparacion': comparacion.nombre_comparacion
+            'nombre_comparacion': comparacion.nombre_comparacion,
+            'fecha_creacion': comparacion.fecha_creacion
         }, status=201)
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -272,33 +274,40 @@ def crear_comparacion_individual(request):
         return JsonResponse(payload, status=401)
     
     try:
-        data = json.loads(request.body)
+        # Obtener datos del FormData
+        usuario_id = request.POST.get('usuario_id')
+        modelo_ia_id = request.POST.get('modelo_ia_id')
+        lenguaje_id = request.POST.get('lenguaje_id')
+        nombre_comparacion = request.POST.get('nombre_comparacion')
+        codigo_1 = request.POST.get('codigo_1')
+        codigo_2 = request.POST.get('codigo_2')
+        estado = request.POST.get('estado', 'Reciente')
         
-        # Validar campos requeridos
-        campos_requeridos = ['usuario_id', 'modelo_ia_id', 'lenguaje_id', 'codigo_1', 'codigo_2']
-        for campo in campos_requeridos:
-            if campo not in data:
-                return JsonResponse({'error': f'Campo {campo} es requerido'}, status=400)
+        # Validaciones
+        if not all([usuario_id, modelo_ia_id, lenguaje_id, codigo_1, codigo_2]):
+            return JsonResponse({
+                'error': 'Faltan campos requeridos: usuario_id, modelo_ia_id, lenguaje_id, codigo_1, codigo_2'
+            }, status=400)
         
+        # Crear la comparación individual
         comparacion = ComparacionesIndividuales.objects.create(
-            usuario_id=data['usuario_id'],
-            modelo_ia_id=data['modelo_ia_id'],
-            lenguaje_id=data['lenguaje_id'],
-            nombre_comparacion=data.get('nombre_comparacion'),
-            codigo_1=data['codigo_1'],
-            codigo_2=data['codigo_2'],
-            estado=data.get('estado', 'Reciente'),
+            usuario_id=usuario_id,
+            modelo_ia_id=modelo_ia_id,
+            lenguaje_id=lenguaje_id,
+            nombre_comparacion=nombre_comparacion,
+            codigo_1=codigo_1,
+            codigo_2=codigo_2,
+            estado=estado,
             fecha_creacion=timezone.now()
         )
         
         return JsonResponse({
             'mensaje': 'Comparación individual creada exitosamente',
             'id': comparacion.id,
-            'nombre_comparacion': comparacion.nombre_comparacion
+            'nombre_comparacion': comparacion.nombre_comparacion,
+            'fecha_creacion': comparacion.fecha_creacion
         }, status=201)
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -307,7 +316,7 @@ def crear_comparacion_individual(request):
 
 @require_http_methods(["POST"])
 def crear_lenguaje(request):
-    """Crear un nuevo lenguaje de programación"""
+    """Crear un nuevo lenguaje"""
     payload = validar_token(request)
     
     if not payload:
@@ -317,29 +326,35 @@ def crear_lenguaje(request):
         return JsonResponse(payload, status=401)
     
     try:
-        data = json.loads(request.body)
+        # Obtener datos del FormData
+        nombre = request.POST.get('nombre')
+        extension = request.POST.get('extension')
         
-        # Validar campo requerido
-        if 'nombre' not in data:
-            return JsonResponse({'error': 'Campo nombre es requerido'}, status=400)
+        # Validaciones
+        if not nombre:
+            return JsonResponse({
+                'error': 'El campo nombre es requerido'
+            }, status=400)
         
         # Verificar si ya existe
-        if Lenguajes.objects.filter(nombre=data['nombre']).exists():
-            return JsonResponse({'error': 'El lenguaje ya existe'}, status=400)
+        if Lenguajes.objects.filter(nombre=nombre).exists():
+            return JsonResponse({
+                'error': f'El lenguaje "{nombre}" ya existe'
+            }, status=400)
         
+        # Crear el lenguaje
         lenguaje = Lenguajes.objects.create(
-            nombre=data['nombre'],
-            extension=data.get('extension')
+            nombre=nombre,
+            extension=extension
         )
         
         return JsonResponse({
             'mensaje': 'Lenguaje creado exitosamente',
             'id': lenguaje.id,
-            'nombre': lenguaje.nombre
+            'nombre': lenguaje.nombre,
+            'extension': lenguaje.extension
         }, status=201)
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -358,40 +373,75 @@ def crear_modelo_ia(request):
         return JsonResponse(payload, status=401)
     
     try:
-        data = json.loads(request.body)
+        # Obtener datos del FormData
+        nombre = request.POST.get('nombre')
+        version = request.POST.get('version')
+        proveedor_id = request.POST.get('proveedor_id')
+        descripcion = request.POST.get('descripcion')
+        endpoint_api = request.POST.get('endpoint_api')
+        tipo_autenticacion = request.POST.get('tipo_autenticacion', 'api_key')
+        headers_adicionales = request.POST.get('headers_adicionales')
+        parametros_default = request.POST.get('parametros_default')
+        limite_tokens = request.POST.get('limite_tokens')
+        soporta_streaming = request.POST.get('soporta_streaming', 'false')
+        activo = request.POST.get('activo', 'true')
         
-        # Validar campos requeridos
-        campos_requeridos = ['nombre', 'endpoint_api']
-        for campo in campos_requeridos:
-            if campo not in data:
-                return JsonResponse({'error': f'Campo {campo} es requerido'}, status=400)
+        # Validaciones
+        if not all([nombre, endpoint_api]):
+            return JsonResponse({
+                'error': 'Faltan campos requeridos: nombre, endpoint_api'
+            }, status=400)
         
         # Verificar si ya existe
-        if ModelosIa.objects.filter(nombre=data['nombre']).exists():
-            return JsonResponse({'error': 'El modelo ya existe'}, status=400)
+        if ModelosIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({
+                'error': f'El modelo "{nombre}" ya existe'
+            }, status=400)
         
+        # Convertir campos JSON si vienen como string
+        if headers_adicionales:
+            try:
+                headers_adicionales = json.loads(headers_adicionales)
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'error': 'headers_adicionales debe ser un JSON válido'
+                }, status=400)
+        
+        if parametros_default:
+            try:
+                parametros_default = json.loads(parametros_default)
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'error': 'parametros_default debe ser un JSON válido'
+                }, status=400)
+        
+        # Convertir booleanos
+        soporta_streaming = soporta_streaming.lower() in ['true', '1', 'yes']
+        activo = activo.lower() in ['true', '1', 'yes']
+        
+        # Crear el modelo IA
         modelo = ModelosIa.objects.create(
-            nombre=data['nombre'],
-            version=data.get('version'),
-            proveedor_id=data.get('proveedor_id'),
-            descripcion=data.get('descripcion'),
-            endpoint_api=data['endpoint_api'],
-            tipo_autenticacion=data.get('tipo_autenticacion', 'api_key'),
-            headers_adicionales=data.get('headers_adicionales'),
-            parametros_default=data.get('parametros_default'),
-            limite_tokens=data.get('limite_tokens'),
-            soporta_streaming=data.get('soporta_streaming', False),
-            activo=data.get('activo', True),
+            nombre=nombre,
+            version=version,
+            proveedor_id=proveedor_id if proveedor_id else None,
+            descripcion=descripcion,
+            endpoint_api=endpoint_api,
+            tipo_autenticacion=tipo_autenticacion,
+            headers_adicionales=headers_adicionales,
+            parametros_default=parametros_default,
+            limite_tokens=int(limite_tokens) if limite_tokens else None,
+            soporta_streaming=soporta_streaming,
+            activo=activo,
             fecha_creacion=timezone.now()
         )
         
         return JsonResponse({
             'mensaje': 'Modelo de IA creado exitosamente',
             'id': modelo.id,
-            'nombre': modelo.nombre
+            'nombre': modelo.nombre,
+            'version': modelo.version,
+            'endpoint_api': modelo.endpoint_api
         }, status=201)
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
