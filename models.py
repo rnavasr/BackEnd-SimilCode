@@ -19,19 +19,18 @@ class CodigosFuente(models.Model):
         db_table = 'codigos_fuente'
         app_label = 'app'
 
-
 class ComparacionesGrupales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
     modelo_ia = models.ForeignKey('ModelosIa', models.DO_NOTHING)
     lenguaje = models.ForeignKey('Lenguajes', models.DO_NOTHING)
     nombre_comparacion = models.CharField(max_length=200, blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'comparaciones_grupales'
         app_label = 'app'
-
 
 class ComparacionesIndividuales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
@@ -41,12 +40,12 @@ class ComparacionesIndividuales(models.Model):
     codigo_1 = models.TextField()
     codigo_2 = models.TextField()
     fecha_creacion = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'comparaciones_individuales'
         app_label = 'app'
-
 
 class ConfiguracionApi(models.Model):
     modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING)
@@ -60,7 +59,6 @@ class ConfiguracionApi(models.Model):
         managed = False
         db_table = 'configuracion_api'
         app_label = 'app'
-
 
 class CredencialesApi(models.Model):
     modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING)
@@ -76,7 +74,6 @@ class CredencialesApi(models.Model):
         db_table = 'credenciales_api'
         app_label = 'app'
 
-
 class DatosPersonales(models.Model):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
@@ -89,7 +86,6 @@ class DatosPersonales(models.Model):
         db_table = 'datos_personales'
         app_label = 'app'
 
-
 class Lenguajes(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
     extension = models.CharField(max_length=10, blank=True, null=True)
@@ -98,7 +94,6 @@ class Lenguajes(models.Model):
         managed = False
         db_table = 'lenguajes'
         app_label = 'app'
-
 
 class ModelosIa(models.Model):
     nombre = models.CharField(unique=True, max_length=100)
@@ -119,7 +114,6 @@ class ModelosIa(models.Model):
         db_table = 'modelos_ia'
         app_label = 'app'
 
-
 class ProveedoresIa(models.Model):
     nombre = models.CharField(unique=True, max_length=100)
     descripcion = models.TextField(blank=True, null=True)
@@ -132,7 +126,6 @@ class ProveedoresIa(models.Model):
         managed = False
         db_table = 'proveedores_ia'
         app_label = 'app'
-
 
 class PruebasModelos(models.Model):
     modelo_ia = models.ForeignKey(ModelosIa, models.DO_NOTHING)
@@ -148,7 +141,6 @@ class PruebasModelos(models.Model):
         db_table = 'pruebas_modelos'
         app_label = 'app'
 
-
 class ResultadosEficienciaGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
     codigo_fuente = models.ForeignKey(CodigosFuente, models.DO_NOTHING)
@@ -161,7 +153,6 @@ class ResultadosEficienciaGrupal(models.Model):
         managed = False
         db_table = 'resultados_eficiencia_grupal'
         app_label = 'app'
-
 
 class ResultadosEficienciaIndividual(models.Model):
     comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING)
@@ -176,7 +167,6 @@ class ResultadosEficienciaIndividual(models.Model):
         db_table = 'resultados_eficiencia_individual'
         app_label = 'app'
 
-
 class ResultadosSimilitudGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
     codigo_fuente_1 = models.ForeignKey(CodigosFuente, models.DO_NOTHING)
@@ -189,7 +179,6 @@ class ResultadosSimilitudGrupal(models.Model):
         db_table = 'resultados_similitud_grupal'
         app_label = 'app'
 
-
 class ResultadosSimilitudIndividual(models.Model):
     comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING)
     porcentaje_similitud = models.DecimalField(max_digits=5, decimal_places=2)
@@ -201,7 +190,6 @@ class ResultadosSimilitudIndividual(models.Model):
         db_table = 'resultados_similitud_individual'
         app_label = 'app'
 
-
 class Roles(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
     descripcion = models.TextField(blank=True, null=True)
@@ -210,7 +198,6 @@ class Roles(models.Model):
         managed = False
         db_table = 'roles'
         app_label = 'app'
-
 
 class UsoApis(models.Model):
     modelo_ia = models.ForeignKey(ModelosIa, models.DO_NOTHING, blank=True, null=True)
@@ -226,7 +213,6 @@ class UsoApis(models.Model):
         managed = False
         db_table = 'uso_apis'
         app_label = 'app'
-
 
 class Usuarios(models.Model):
     usuario = models.CharField(unique=True, max_length=50)

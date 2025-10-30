@@ -126,6 +126,7 @@ CREATE TABLE comparaciones_individuales (
     nombre_comparacion VARCHAR(200),
     codigo_1 TEXT NOT NULL,
     codigo_2 TEXT NOT NULL,
+    estado VARCHAR(20) DEFAULT 'Reciente' CHECK (estado IN ('Reciente', 'Destacado', 'Oculto')),
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -136,6 +137,7 @@ CREATE TABLE comparaciones_grupales (
     id_modelo_ia INTEGER NOT NULL REFERENCES modelos_ia(id_modelo_ia),
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),
     nombre_comparacion VARCHAR(200),
+    estado VARCHAR(20) DEFAULT 'Reciente' CHECK (estado IN ('Reciente', 'Destacado', 'Oculto')),
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
