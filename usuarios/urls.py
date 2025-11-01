@@ -10,5 +10,6 @@ urlpatterns = [
     path('crear_comparaciones_grupales/', views.crear_comparacion_grupal, name="crear_comparacion_grupal"),
     path('crear_comparaciones_individuales/', views.crear_comparacion_individual, name="crear_comparacion_individual"),
     path('crear_lenguajes/', views.crear_lenguaje, name="crear_lenguaje"),
-    path('crear_modelos_ia/', views.crear_modelo_ia, name="crear_modelo_ia")
+    path('crear_modelos_ia/', views.crear_modelo_ia, name="crear_modelo_ia"),
+    path('crear_proveedor_ia/', views.crear_proveedor_ia, name="crear_proveedor_ia")
 ]

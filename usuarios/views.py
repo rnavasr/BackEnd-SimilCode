@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import jwt
 from django.conf import settings
 from usuarios.models import *
-from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa
+from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
 from django.utils import timezone
 import json
 
@@ -180,7 +180,7 @@ def listar_comparaciones_individuales(request, usuario_id):
         # Obtener todas las comparaciones individuales del usuario
         comparaciones = ComparacionesIndividuales.objects.filter(
             usuario_id=usuario_id  # Ahora usa el parámetro de la URL
-        ).values('id', 'nombre_comparacion', 'fecha_creacion').order_by('-fecha_creacion')
+        ).values('id', 'nombre_comparacion', 'fecha_creacion', 'estado').order_by('-fecha_creacion')
         
         return JsonResponse({
             'comparaciones': list(comparaciones)
@@ -205,7 +205,7 @@ def listar_comparaciones_grupales(request, usuario_id):
         # Obtener todas las comparaciones grupales del usuario
         comparaciones = ComparacionesGrupales.objects.filter(
             usuario_id=usuario_id  # Ahora usa el parámetro de la URL
-        ).values('id', 'nombre_comparacion', 'fecha_creacion').order_by('-fecha_creacion')
+        ).values('id', 'nombre_comparacion', 'fecha_creacion','estado').order_by('-fecha_creacion')
         
         return JsonResponse({
             'comparaciones': list(comparaciones)
@@ -214,6 +214,7 @@ def listar_comparaciones_grupales(request, usuario_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def crear_comparacion_grupal(request):
     """Crear una nueva comparación grupal"""
@@ -259,9 +260,7 @@ def crear_comparacion_grupal(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
-# ============= CREAR COMPARACIÓN INDIVIDUAL =============
-
+@csrf_exempt
 @require_http_methods(["POST"])
 def crear_comparacion_individual(request):
     """Crear una nueva comparación individual"""
@@ -312,8 +311,7 @@ def crear_comparacion_individual(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-# ============= CREAR LENGUAJE =============
-
+@csrf_exempt
 @require_http_methods(["POST"])
 def crear_lenguaje(request):
     """Crear un nuevo lenguaje"""
@@ -358,9 +356,7 @@ def crear_lenguaje(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
-# ============= CREAR MODELO IA =============
-
+@csrf_exempt
 @require_http_methods(["POST"])
 def crear_modelo_ia(request):
     """Crear un nuevo modelo de IA"""
@@ -441,6 +437,61 @@ def crear_modelo_ia(request):
             'nombre': modelo.nombre,
             'version': modelo.version,
             'endpoint_api': modelo.endpoint_api
+        }, status=201)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_proveedor_ia(request):
+    """Crear un nuevo proveedor de IA"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener datos del FormData
+        nombre = request.POST.get('nombre')
+        descripcion = request.POST.get('descripcion', '')
+        logo_url = request.POST.get('logo_url', '')
+        sitio_web = request.POST.get('sitio_web', '')
+        activo = request.POST.get('activo', 'true').lower() == 'true'
+        
+        # Validaciones
+        if not nombre:
+            return JsonResponse({
+                'error': 'El campo nombre es requerido'
+            }, status=400)
+        
+        # Verificar si ya existe
+        if ProveedoresIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({
+                'error': f'El proveedor "{nombre}" ya existe'
+            }, status=400)
+        
+        # Crear el proveedor
+        proveedor = ProveedoresIa.objects.create(
+            nombre=nombre,
+            descripcion=descripcion if descripcion else None,
+            logo_url=logo_url if logo_url else None,
+            sitio_web=sitio_web if sitio_web else None,
+            activo=activo,
+            fecha_creacion=timezone.now()
+        )
+        
+        return JsonResponse({
+            'mensaje': 'Proveedor de IA creado exitosamente',
+            'id': proveedor.id_proveedor,
+            'nombre': proveedor.nombre,
+            'descripcion': proveedor.descripcion,
+            'logo_url': proveedor.logo_url,
+            'sitio_web': proveedor.sitio_web,
+            'activo': proveedor.activo
         }, status=201)
         
     except Exception as e:
