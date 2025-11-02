@@ -11,5 +11,11 @@ urlpatterns = [
     path('crear_comparaciones_individuales/', views.crear_comparacion_individual, name="crear_comparacion_individual"),
     path('crear_lenguajes/', views.crear_lenguaje, name="crear_lenguaje"),
     path('crear_modelos_ia/', views.crear_modelo_ia, name="crear_modelo_ia"),
-    path('crear_proveedor_ia/', views.crear_proveedor_ia, name="crear_proveedor_ia")
+    path('crear_proveedor_ia/', views.crear_proveedor_ia, name="crear_proveedor_ia"),
+    path('comparacion_individual_reciente/<int:comparacion_id>/', views.marcar_individual_reciente, name="marcar_individual_reciente"),
+    path('comparacion_individual_destacado/<int:comparacion_id>/', views.marcar_individual_destacado, name="marcar_individual_destacado"),
+    path('comparacion_individual_oculto/<int:comparacion_id>/', views.marcar_individual_oculto, name="marcar_individual_oculto"),
+    path('comparacion_grupal_reciente/<int:comparacion_id>/', views.marcar_grupal_reciente, name="marcar_grupal_reciente"),
+    path('comparacion_grupal_destacado/<int:comparacion_id>/', views.marcar_grupal_destacado, name="marcar_grupal_destacado"),
+    path('comparacion_grupal_oculto/<int:comparacion_id>/', views.marcar_grupal_oculto, name="marcar_grupal_oculto")
 ]

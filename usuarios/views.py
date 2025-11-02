@@ -496,3 +496,128 @@ def crear_proveedor_ia(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_individual_reciente(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesIndividuales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Reciente'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Reciente', 'id': comparacion.id}, status=200)
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_individual_destacado(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesIndividuales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Destacado'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Destacado', 'id': comparacion.id}, status=200)
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_individual_oculto(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesIndividuales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Oculto'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Oculto', 'id': comparacion.id}, status=200)
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_grupal_reciente(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesGrupales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Reciente'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Reciente', 'id': comparacion.id}, status=200)
+    except ComparacionesGrupales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_grupal_destacado(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesGrupales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Destacado'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Destacado', 'id': comparacion.id}, status=200)
+    except ComparacionesGrupales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def marcar_grupal_oculto(request, comparacion_id):
+    payload = validar_token(request)
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    
+    try:
+        comparacion = ComparacionesGrupales.objects.get(id=comparacion_id)
+        if comparacion.usuario_id != (payload.get('usuario_id') or payload.get('user_id')):
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        comparacion.estado = 'Oculto'
+        comparacion.save()
+        return JsonResponse({'mensaje': 'Marcado como Oculto', 'id': comparacion.id}, status=200)
+    except ComparacionesGrupales.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
