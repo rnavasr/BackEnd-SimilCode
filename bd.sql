@@ -52,7 +52,7 @@ CREATE TABLE proveedores_ia (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de modelos de IA (mejorada)
+
 CREATE TABLE modelos_ia (
     id_modelo_ia SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL UNIQUE,
@@ -65,8 +65,11 @@ CREATE TABLE modelos_ia (
     parametros_default JSONB,
     limite_tokens INTEGER,
     soporta_streaming BOOLEAN DEFAULT false,
+    color_ia VARCHAR(7),
+    imagen_ia BYTEA,
     activo BOOLEAN DEFAULT true,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recomendado BOOLEAN DEFAULT false
 );
 
 -- Tabla de credenciales encriptadas
@@ -117,30 +120,38 @@ CREATE TABLE lenguajes (
     extension VARCHAR(10)
 );
 
--- Tabla de comparaciones individuales (2 códigos)
 CREATE TABLE comparaciones_individuales (
     id_comparacion_individual SERIAL PRIMARY KEY,
     id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
-    id_modelo_ia INTEGER NOT NULL REFERENCES modelos_ia(id_modelo_ia),
-    id_modelo_ia_usuario INTEGER REFERENCES modelos_ia_usuario(id_modelo_ia_usuario),
+    id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
+    id_modelo_ia_usuario INTEGER REFERENCES modelos_ia_usuario(id_modelo_ia_usuario), 
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),
     nombre_comparacion VARCHAR(200),
     codigo_1 TEXT NOT NULL,
     codigo_2 TEXT NOT NULL,
-    estado VARCHAR(20) DEFAULT 'Reciente' CHECK (estado IN ('Reciente', 'Destacado', 'Oculto')),
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    estado VARCHAR(20) DEFAULT 'Reciente',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT check_solo_un_modelo CHECK (
+        (id_modelo_ia IS NOT NULL AND id_modelo_ia_usuario IS NULL) OR
+        (id_modelo_ia IS NULL AND id_modelo_ia_usuario IS NOT NULL)
+    )
 );
 
--- Tabla de comparaciones grupales (múltiples códigos)
 CREATE TABLE comparaciones_grupales (
     id_comparacion_grupal SERIAL PRIMARY KEY,
     id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
-    id_modelo_ia INTEGER NOT NULL REFERENCES modelos_ia(id_modelo_ia),
+    id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
     id_modelo_ia_usuario INTEGER REFERENCES modelos_ia_usuario(id_modelo_ia_usuario),
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),
     nombre_comparacion VARCHAR(200),
-    estado VARCHAR(20) DEFAULT 'Reciente' CHECK (estado IN ('Reciente', 'Destacado', 'Oculto')),
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    estado VARCHAR(20) DEFAULT 'Reciente',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT check_solo_un_modelo CHECK (
+        (id_modelo_ia IS NOT NULL AND id_modelo_ia_usuario IS NULL) OR
+        (id_modelo_ia IS NULL AND id_modelo_ia_usuario IS NOT NULL)
+    )
 );
 
 -- Tabla de códigos fuente para comparaciones grupales
@@ -223,10 +234,11 @@ CREATE TABLE modelos_ia_usuario (
     parametros_default JSONB,
     limite_tokens INTEGER,
     soporta_streaming BOOLEAN DEFAULT false,
-    color VARCHAR(7),
-    imagen BYTEA,
+    color_ia_usuario VARCHAR(7),
+    imagen_ia_usuario BYTEA,
     activo BOOLEAN DEFAULT true,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recomendado BOOLEAN DEFAULT false
 );
 
 -- 2. Crear tabla de credenciales para modelos de usuario
