@@ -207,6 +207,50 @@ CREATE TABLE pruebas_modelos (
     fecha_prueba TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 1. Crear tabla de modelos de IA de usuarios
+CREATE TABLE modelos_ia_usuario (
+    id_modelo_ia_usuario SERIAL PRIMARY KEY,
+    id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
+    nombre VARCHAR(100) NOT NULL,
+    version VARCHAR(50),
+    id_proveedor INTEGER REFERENCES proveedores_ia(id),
+    descripcion TEXT,
+    endpoint_api VARCHAR(255) NOT NULL,
+    tipo_autenticacion VARCHAR(50) DEFAULT 'api_key',
+    headers_adicionales JSONB,
+    parametros_default JSONB,
+    limite_tokens INTEGER,
+    soporta_streaming BOOLEAN DEFAULT false,
+    color VARCHAR(7),
+    imagen BYTEA,
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Crear tabla de credenciales para modelos de usuario
+CREATE TABLE credenciales_api_usuario (
+    id_credencial_usuario SERIAL PRIMARY KEY,
+    id_modelo_ia_usuario INTEGER UNIQUE NOT NULL REFERENCES modelos_ia_usuario(id_modelo_ia_usuario),
+    api_key_encrypted BYTEA NOT NULL,
+    api_secret_encrypted BYTEA,
+    headers_auth JSONB,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultima_rotacion TIMESTAMP,
+    expira_en TIMESTAMP,
+    CONSTRAINT check_expiration_usuario CHECK (expira_en IS NULL OR expira_en > CURRENT_TIMESTAMP)
+);
+
+-- 3. Crear tabla de configuración de API para modelos de usuario
+CREATE TABLE configuracion_api_usuario (
+    id_config_usuario SERIAL PRIMARY KEY,
+    id_modelo_ia_usuario INTEGER UNIQUE NOT NULL REFERENCES modelos_ia_usuario(id_modelo_ia_usuario),
+    metodo_http VARCHAR(10) DEFAULT 'POST',
+    path_endpoint VARCHAR(255),
+    formato_request JSONB NOT NULL,
+    formato_response JSONB NOT NULL,
+    timeout_segundos INTEGER DEFAULT 30
+);
+
 -- ============================================
 -- FUNCIONES DE ENCRIPTACIÓN
 -- ============================================
