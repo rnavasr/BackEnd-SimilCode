@@ -19,15 +19,13 @@ class CodigosFuente(models.Model):
         db_table = 'codigos_fuente'
         app_label = 'app'
 
-
 class ComparacionesGrupales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
-    modelo_ia = models.ForeignKey('ModelosIa', models.DO_NOTHING)
     lenguaje = models.ForeignKey('Lenguajes', models.DO_NOTHING)
     nombre_comparacion = models.CharField(max_length=200, blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     estado = models.CharField(max_length=20, blank=True, null=True)
-    id_modelo_ia_usuario = models.IntegerField(blank=True, null=True)
+    id_modelo_ia = models.ForeignKey('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia', blank=True, null=True)
 
     class Meta:
         managed = False
@@ -36,14 +34,13 @@ class ComparacionesGrupales(models.Model):
 
 class ComparacionesIndividuales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
-    modelo_ia = models.ForeignKey('ModelosIa', models.DO_NOTHING)
     lenguaje = models.ForeignKey('Lenguajes', models.DO_NOTHING)
     nombre_comparacion = models.CharField(max_length=200, blank=True, null=True)
     codigo_1 = models.TextField()
     codigo_2 = models.TextField()
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     estado = models.CharField(max_length=20, blank=True, null=True)
-    id_modelo_ia_usuario = models.IntegerField(blank=True, null=True)
+    id_modelo_ia = models.ForeignKey('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia', blank=True, null=True)
 
     class Meta:
         managed = False
@@ -63,20 +60,6 @@ class ConfiguracionApi(models.Model):
         db_table = 'configuracion_api'
         app_label = 'app'
 
-class ConfiguracionApiUsuario(models.Model):
-    id_config_usuario = models.AutoField(primary_key=True)
-    id_modelo_ia_usuario = models.IntegerField(unique=True)
-    metodo_http = models.CharField(max_length=10, blank=True, null=True)
-    path_endpoint = models.CharField(max_length=255, blank=True, null=True)
-    formato_request = models.JSONField()
-    formato_response = models.JSONField()
-    timeout_segundos = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'configuracion_api_usuario'
-        app_label = 'app'
-
 class CredencialesApi(models.Model):
     modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING)
     api_key_encrypted = models.BinaryField()
@@ -91,21 +74,6 @@ class CredencialesApi(models.Model):
         db_table = 'credenciales_api'
         app_label = 'app'
 
-class CredencialesApiUsuario(models.Model):
-    id_credencial_usuario = models.AutoField(primary_key=True)
-    id_modelo_ia_usuario = models.IntegerField(unique=True)
-    api_key_encrypted = models.BinaryField()
-    api_secret_encrypted = models.BinaryField(blank=True, null=True)
-    headers_auth = models.JSONField(blank=True, null=True)
-    fecha_creacion = models.DateTimeField(blank=True, null=True)
-    ultima_rotacion = models.DateTimeField(blank=True, null=True)
-    expira_en = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'credenciales_api_usuario'
-        app_label = 'app'
-
 class DatosPersonales(models.Model):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
@@ -116,7 +84,7 @@ class DatosPersonales(models.Model):
     class Meta:
         managed = False
         db_table = 'datos_personales'
-        app_label = 'app'
+        app_label = 'app'        
 
 class Lenguajes(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
@@ -140,35 +108,14 @@ class ModelosIa(models.Model):
     soporta_streaming = models.BooleanField(blank=True, null=True)
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
-    color = models.CharField(max_length=7, blank=True, null=True)
-    imagen = models.BinaryField(blank=True, null=True)
+    recomendado = models.BooleanField(blank=True, null=True)
+    imagen_ia = models.BinaryField(blank=True, null=True)
+    color_ia = models.CharField(max_length=7, blank=True, null=True)
+    id_usuario = models.ForeignKey('Usuarios', models.DO_NOTHING, db_column='id_usuario', blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'modelos_ia'
-        app_label = 'app'
-
-class ModelosIaUsuario(models.Model):
-    id_modelo_ia_usuario = models.AutoField(primary_key=True)
-    id_usuario = models.ForeignKey('Usuarios', models.DO_NOTHING, db_column='id_usuario')
-    nombre = models.CharField(max_length=100)
-    version = models.CharField(max_length=50, blank=True, null=True)
-    id_proveedor = models.ForeignKey('ProveedoresIa', models.DO_NOTHING, db_column='id_proveedor', blank=True, null=True)
-    descripcion = models.TextField(blank=True, null=True)
-    endpoint_api = models.CharField(max_length=255)
-    tipo_autenticacion = models.CharField(max_length=50, blank=True, null=True)
-    headers_adicionales = models.JSONField(blank=True, null=True)
-    parametros_default = models.JSONField(blank=True, null=True)
-    limite_tokens = models.IntegerField(blank=True, null=True)
-    soporta_streaming = models.BooleanField(blank=True, null=True)
-    color = models.CharField(max_length=7, blank=True, null=True)
-    imagen = models.BinaryField(blank=True, null=True)
-    activo = models.BooleanField(blank=True, null=True)
-    fecha_creacion = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'modelos_ia_usuario'
         app_label = 'app'
 
 class ProveedoresIa(models.Model):
@@ -282,4 +229,4 @@ class Usuarios(models.Model):
     class Meta:
         managed = False
         db_table = 'usuarios'
-        app_label = 'app'
+        app_label = 'app'        
