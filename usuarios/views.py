@@ -5,13 +5,11 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
 from datetime import datetime, timedelta
-import jwt
+import jwt,json,base64
 from django.conf import settings
 from usuarios.models import *
 from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
 from django.utils import timezone
-import json
-
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -619,5 +617,112 @@ def marcar_grupal_oculto(request, comparacion_id):
         return JsonResponse({'mensaje': 'Marcado como Oculto', 'id': comparacion.id}, status=200)
     except ComparacionesGrupales.DoesNotExist:
         return JsonResponse({'error': 'No encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+
+@require_http_methods(["GET"])
+def listar_modelos_admin(request):
+    """Listar todos los modelos de IA creados por admin (visibles para todos)"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener el rol de admin
+        rol_admin = Roles.objects.filter(nombre='admin').first()
+        
+        if not rol_admin:
+            return JsonResponse({'error': 'Rol admin no encontrado'}, status=404)
+        
+        # Obtener todos los usuarios con rol admin
+        usuarios_admin = Usuarios.objects.filter(rol=rol_admin).values_list('id', flat=True)
+        
+        # Filtrar modelos creados por usuarios admin y que estén activos
+        modelos = ModelosIa.objects.filter(
+            id_usuario__in=usuarios_admin,
+            activo=True
+        ).select_related('proveedor').values(
+            'id',
+            'nombre',
+            'descripcion',
+            'color_ia',
+            'imagen_ia',
+            'proveedor__nombre'
+        ).order_by('-fecha_creacion')
+        
+        # Convertir imagen binaria a base64 si existe
+        modelos_lista = []
+        for modelo in modelos:
+            modelo_dict = {
+                'id_modelo_ia': modelo['id'],
+                'nombre': modelo['nombre'],
+                'descripcion': modelo['descripcion'],
+                'color': modelo['color_ia'],
+                'nombre_proveedor': modelo['proveedor__nombre'],
+                'imagen': base64.b64encode(modelo['imagen_ia']).decode('utf-8') if modelo['imagen_ia'] else None
+            }
+            modelos_lista.append(modelo_dict)
+        
+        return JsonResponse({
+            'modelos': modelos_lista
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def listar_modelos_usuario(request, usuario_id):
+    """Listar modelos de IA creados por un usuario específico (solo visibles para él)"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Verificar que el usuario existe
+        usuario = Usuarios.objects.filter(id=usuario_id).first()
+        
+        if not usuario:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        
+        # Filtrar modelos creados por este usuario específico y que estén activos
+        modelos = ModelosIa.objects.filter(
+            id_usuario=usuario_id,
+            activo=True
+        ).select_related('proveedor').values(
+            'id',
+            'nombre',
+            'descripcion',
+            'color_ia',
+            'imagen_ia',
+            'proveedor__nombre'
+        ).order_by('-fecha_creacion')
+        
+        # Convertir imagen binaria a base64 si existe
+        modelos_lista = []
+        for modelo in modelos:
+            modelo_dict = {
+                'id_modelo_ia': modelo['id'],
+                'nombre': modelo['nombre'],
+                'descripcion': modelo['descripcion'],
+                'color': modelo['color_ia'],
+                'nombre_proveedor': modelo['proveedor__nombre'],
+                'imagen': base64.b64encode(modelo['imagen_ia']).decode('utf-8') if modelo['imagen_ia'] else None
+            }
+            modelos_lista.append(modelo_dict)
+        
+        return JsonResponse({
+            'modelos': modelos_lista
+        }, status=200)
+        
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
