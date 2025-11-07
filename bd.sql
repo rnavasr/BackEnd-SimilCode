@@ -247,7 +247,7 @@ $$ LANGUAGE plpgsql;
 -- Insertar algunos roles básicos
 INSERT INTO roles (nombre, descripcion) VALUES 
 ('admin', 'Administrador del sistema'),
-('usuario', 'Usuario regular')
+('usuario', 'Docente')
 
 
 -- Si tienen tablas en postgres y quieren traerlas al backend, pueden usar el siguiente comando:
