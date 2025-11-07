@@ -726,3 +726,64 @@ def listar_modelos_usuario(request, usuario_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def obtener_comparacion_individual(request, comparacion_id):
+    """Obtener los datos de una comparación individual específica"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener la comparación con sus relaciones
+        comparacion = ComparacionesIndividuales.objects.select_related(
+            'usuario',
+            'lenguaje',
+            'id_modelo_ia'
+        ).get(id=comparacion_id)
+        
+        # Verificar que el usuario autenticado sea el dueño de la comparación
+        usuario_id_token = payload.get('usuario_id')
+        if comparacion.usuario.id != usuario_id_token:
+            return JsonResponse({
+                'error': 'No tienes permiso para ver esta comparación'
+            }, status=403)
+        
+        # Construir la respuesta
+        response_data = {
+            'id': comparacion.id,
+            'nombre_comparacion': comparacion.nombre_comparacion,
+            'codigo_1': comparacion.codigo_1,
+            'codigo_2': comparacion.codigo_2,
+            'estado': comparacion.estado,
+            'fecha_creacion': comparacion.fecha_creacion,
+            'usuario': {
+                'id': comparacion.usuario.id,
+                'nombre': comparacion.usuario.nombre if hasattr(comparacion.usuario, 'nombre') else None,
+                'email': comparacion.usuario.email if hasattr(comparacion.usuario, 'email') else None
+            },
+            'lenguaje': {
+                'id': comparacion.lenguaje.id,
+                'nombre': comparacion.lenguaje.nombre if hasattr(comparacion.lenguaje, 'nombre') else None
+            },
+            'modelo_ia': {
+                'id': comparacion.id_modelo_ia.id if comparacion.id_modelo_ia else None,
+                'nombre': comparacion.id_modelo_ia.nombre if comparacion.id_modelo_ia and hasattr(comparacion.id_modelo_ia, 'nombre') else None
+            } if comparacion.id_modelo_ia else None
+        }
+        
+        return JsonResponse(response_data, status=200)
+        
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({
+            'error': f'No se encontró la comparación con ID {comparacion_id}'
+        }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

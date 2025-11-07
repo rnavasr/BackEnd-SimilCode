@@ -20,4 +20,5 @@ urlpatterns = [
     path('comparacion_grupal_oculto/<int:comparacion_id>/', views.marcar_grupal_oculto, name="marcar_grupal_oculto"),
     path('listar_modelos_admin/', views.listar_modelos_admin, name='listar_modelos_admin'),
     path('listar_modelos_usuario/<int:usuario_id>/', views.listar_modelos_usuario, name='listar_modelos_usuario'),
+    path('comparacion_individual/<int:comparacion_id>/', views.obtener_comparacion_individual, name="obtener_comparacion_individual")
 ]
