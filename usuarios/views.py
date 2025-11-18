@@ -5,7 +5,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
 from datetime import datetime, timedelta
-import jwt,json,base64
+import jwt,json,base64,os
 from django.conf import settings
 from usuarios.models import *
 from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
@@ -276,21 +276,90 @@ def crear_comparacion_individual(request):
         modelo_ia_id = request.POST.get('modelo_ia_id')
         lenguaje_id = request.POST.get('lenguaje_id')
         nombre_comparacion = request.POST.get('nombre_comparacion')
-        codigo_1 = request.POST.get('codigo_1')
-        codigo_2 = request.POST.get('codigo_2')
         estado = request.POST.get('estado', 'Reciente')
         
-        # Validaciones
-        if not all([usuario_id, modelo_ia_id, lenguaje_id, codigo_1, codigo_2]):
+        # Validaciones básicas
+        if not all([usuario_id, modelo_ia_id, lenguaje_id]):
             return JsonResponse({
-                'error': 'Faltan campos requeridos: usuario_id, modelo_ia_id, lenguaje_id, codigo_1, codigo_2'
+                'error': 'Faltan campos requeridos: usuario_id, modelo_ia_id, lenguaje_id'
+            }, status=400)
+        
+        # Validar que existan los registros relacionados
+        if not Usuarios.objects.filter(pk=usuario_id).exists():
+            return JsonResponse({
+                'error': f'Usuario con id {usuario_id} no existe'
+            }, status=400)
+        
+        if not ModelosIa.objects.filter(pk=modelo_ia_id).exists():
+            return JsonResponse({
+                'error': f'Modelo IA con id {modelo_ia_id} no existe'
+            }, status=400)
+        
+        try:
+            lenguaje = Lenguajes.objects.get(pk=lenguaje_id)
+            extension_esperada = lenguaje.extension
+        except Lenguajes.DoesNotExist:
+            return JsonResponse({
+                'error': f'Lenguaje con id {lenguaje_id} no existe'
+            }, status=400)
+        
+        # Función para validar y extraer código
+        def obtener_codigo(nombre_campo, campo_texto, campo_archivo, extension_esperada):
+            codigo = request.POST.get(campo_texto)
+            archivo = request.FILES.get(campo_archivo)
+            
+            if archivo:
+                _, extension_archivo = os.path.splitext(archivo.name)
+                extension_archivo = extension_archivo.lower()
+                
+                if extension_esperada:
+                    if not extension_esperada.startswith('.'):
+                        extension_esperada_con_punto = f'.{extension_esperada}'
+                    else:
+                        extension_esperada_con_punto = extension_esperada
+                    
+                    if extension_archivo != extension_esperada_con_punto.lower():
+                        raise ValueError(
+                            f'El archivo {nombre_campo} debe tener extensión '
+                            f'{extension_esperada_con_punto}, pero tiene {extension_archivo}'
+                        )
+                
+                try:
+                    contenido = archivo.read().decode('utf-8')
+                    return contenido
+                except UnicodeDecodeError:
+                    raise ValueError(
+                        f'El archivo {nombre_campo} no está en formato UTF-8 válido'
+                    )
+            
+            elif codigo:
+                return codigo
+            
+            else:
+                return None
+        
+        # --- CÓDIGO 1 ---
+        codigo_1 = obtener_codigo('codigo_1', 'codigo_1', 'archivo_1', extension_esperada)
+        
+        if not codigo_1:
+            return JsonResponse({
+                'error': 'Debes proporcionar codigo_1 como texto o archivo_1'
+            }, status=400)
+        
+        # --- CÓDIGO 2 ---
+        codigo_2 = obtener_codigo('codigo_2', 'codigo_2', 'archivo_2', extension_esperada)
+        
+        if not codigo_2:
+            return JsonResponse({
+                'error': 'Debes proporcionar codigo_2 como texto o archivo_2'
             }, status=400)
         
         # Crear la comparación individual
+        # IMPORTANTE: Usa id_modelo_ia_id (con _id al final) porque el campo se llama id_modelo_ia
         comparacion = ComparacionesIndividuales.objects.create(
             usuario_id=usuario_id,
-            modelo_ia_id=modelo_ia_id,
             lenguaje_id=lenguaje_id,
+            id_modelo_ia_id=modelo_ia_id,  # ← OJO: id_modelo_ia_id (con _id al final)
             nombre_comparacion=nombre_comparacion,
             codigo_1=codigo_1,
             codigo_2=codigo_2,
@@ -300,14 +369,20 @@ def crear_comparacion_individual(request):
         
         return JsonResponse({
             'mensaje': 'Comparación individual creada exitosamente',
-            'id': comparacion.id,
+            'id': comparacion.pk,
             'nombre_comparacion': comparacion.nombre_comparacion,
-            'fecha_creacion': comparacion.fecha_creacion
+            'fecha_creacion': comparacion.fecha_creacion.isoformat(),
+            'lenguaje': lenguaje.nombre
         }, status=201)
         
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
+        import traceback
+        return JsonResponse({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
 
 @csrf_exempt
 @require_http_methods(["POST"])
