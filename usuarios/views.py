@@ -10,7 +10,7 @@ from django.conf import settings
 from usuarios.models import *
 from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
 from django.utils import timezone
-
+from django.db.models import Q
 @csrf_exempt
 @require_http_methods(["POST"])
 def registrar_usuario(request):
@@ -859,6 +859,41 @@ def obtener_comparacion_individual(request, comparacion_id):
         return JsonResponse({
             'error': f'No se encontró la comparación con ID {comparacion_id}'
         }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+
+@require_http_methods(["GET"])
+def listar_lenguajes_usuario(request, usuario_id):
+    """Listar lenguajes creados por admins o por el usuario actual"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener IDs de todos los usuarios admin
+        usuarios_admin_ids = list(Usuarios.objects.filter(
+            rol__nombre__iexact='admin'
+        ).values_list('id', flat=True))
+        
+        # Obtener lenguajes creados por admins O por el usuario actual
+        lenguajes = Lenguajes.objects.filter(
+            Q(usuario_id__in=usuarios_admin_ids) | 
+            Q(usuario_id=usuario_id)
+        ).values(
+            'id', 
+            'nombre', 
+            'extension'
+        ).order_by('nombre')
+        
+        return JsonResponse({
+            'lenguajes': list(lenguajes)
+        }, status=200)
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
