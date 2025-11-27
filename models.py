@@ -101,12 +101,6 @@ class ModelosIa(models.Model):
     version = models.CharField(max_length=50, blank=True, null=True)
     proveedor = models.ForeignKey('ProveedoresIa', models.DO_NOTHING, blank=True, null=True)
     descripcion = models.TextField(blank=True, null=True)
-    endpoint_api = models.CharField(max_length=255)
-    tipo_autenticacion = models.CharField(max_length=50, blank=True, null=True)
-    headers_adicionales = models.JSONField(blank=True, null=True)
-    parametros_default = models.JSONField(blank=True, null=True)
-    limite_tokens = models.IntegerField(blank=True, null=True)
-    soporta_streaming = models.BooleanField(blank=True, null=True)
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     recomendado = models.BooleanField(blank=True, null=True)
@@ -117,6 +111,28 @@ class ModelosIa(models.Model):
     class Meta:
         managed = False
         db_table = 'modelos_ia'
+        app_label = 'app'
+
+class ConfiguracionApi(models.Model):
+    id_config = models.AutoField(primary_key=True)
+    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
+    endpoint_url = models.CharField(max_length=500)
+    api_key = models.CharField(max_length=500)
+
+    class Meta:
+        managed = False
+        db_table = 'configuracion_api'
+        app_label = 'app'
+
+class PromptComparacion(models.Model):
+    id_prompt = models.AutoField(primary_key=True)
+    id_config = models.OneToOneField(ConfiguracionApi, models.DO_NOTHING, db_column='id_config')
+    template_prompt = models.TextField()
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'prompt_comparacion'
         app_label = 'app'
 
 class ProveedoresIa(models.Model):

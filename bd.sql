@@ -1,11 +1,4 @@
 -- ============================================
--- BASE DE DATOS: Sistema de Comparación de Código con IA
--- ============================================
-
--- Habilitar extensión para encriptación
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- ============================================
 -- TABLAS DE CONFIGURACIÓN GENERAL
 -- ============================================
 
@@ -52,7 +45,6 @@ CREATE TABLE proveedores_ia (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
 CREATE TABLE modelos_ia (
     id_modelo_ia SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
@@ -60,12 +52,6 @@ CREATE TABLE modelos_ia (
     id_proveedor INTEGER REFERENCES proveedores_ia(id_proveedor),
     id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
     descripcion TEXT,
-    endpoint_api VARCHAR(255) NOT NULL,
-    tipo_autenticacion VARCHAR(50) DEFAULT 'api_key',
-    headers_adicionales JSONB,
-    parametros_default JSONB,
-    limite_tokens INTEGER,
-    soporta_streaming BOOLEAN DEFAULT false,
     color_ia VARCHAR(7),
     imagen_ia BYTEA,
     activo BOOLEAN DEFAULT true,
@@ -73,41 +59,18 @@ CREATE TABLE modelos_ia (
     recomendado BOOLEAN DEFAULT false
 );
 
--- Tabla de credenciales encriptadas
-CREATE TABLE credenciales_api (
-    id_credencial SERIAL PRIMARY KEY,
-    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
-    api_key_encrypted BYTEA NOT NULL,
-    api_secret_encrypted BYTEA,
-    headers_auth JSONB,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ultima_rotacion TIMESTAMP,
-    expira_en TIMESTAMP,
-    CONSTRAINT check_expiration CHECK (expira_en IS NULL OR expira_en > CURRENT_TIMESTAMP)
-);
-
--- Tabla de configuración de API (estructura de request/response)
 CREATE TABLE configuracion_api (
     id_config SERIAL PRIMARY KEY,
-    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
-    metodo_http VARCHAR(10) DEFAULT 'POST',
-    path_endpoint VARCHAR(255),
-    formato_request JSONB NOT NULL,
-    formato_response JSONB NOT NULL,
-    timeout_segundos INTEGER DEFAULT 30
+    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id),
+    endpoint_url VARCHAR(500) NOT NULL,  -- URL completa de la API
+    api_key VARCHAR(500) NOT NULL      -- La API key (puedes encriptar después)
 );
 
--- Tabla de historial de uso de APIs
-CREATE TABLE uso_apis (
-    id_uso SERIAL PRIMARY KEY,
-    id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
-    id_usuario INTEGER REFERENCES usuarios(id_usuario),
-    tokens_consumidos INTEGER,
-    tiempo_respuesta_ms INTEGER,
-    costo DECIMAL(10, 4),
-    exitoso BOOLEAN,
-    mensaje_error TEXT,
-    fecha_uso TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE prompt_comparacion (
+    id_prompt SERIAL PRIMARY KEY,
+    id_config INTEGER UNIQUE NOT NULL REFERENCES configuracion_api(id_config),
+    template_prompt TEXT NOT NULL,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -218,31 +181,6 @@ CREATE TABLE pruebas_modelos (
     observaciones TEXT,
     fecha_prueba TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-
--- ============================================
--- FUNCIONES DE ENCRIPTACIÓN
--- ============================================
-
--- Función para encriptar API key
-CREATE OR REPLACE FUNCTION encriptar_api_key(
-    p_api_key TEXT,
-    p_key_password TEXT
-) RETURNS BYTEA AS $$
-BEGIN
-    RETURN pgp_sym_encrypt(p_api_key, p_key_password);
-END;
-$$ LANGUAGE plpgsql;
-
--- Función para desencriptar API key
-CREATE OR REPLACE FUNCTION desencriptar_api_key(
-    p_api_key_encrypted BYTEA,
-    p_key_password TEXT
-) RETURNS TEXT AS $$
-BEGIN
-    RETURN pgp_sym_decrypt(p_api_key_encrypted, p_key_password);
-END;
-$$ LANGUAGE plpgsql;
 
 -- Insertar algunos roles básicos
 INSERT INTO roles (nombre, descripcion) VALUES 

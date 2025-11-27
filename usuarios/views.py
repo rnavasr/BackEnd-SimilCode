@@ -8,9 +8,13 @@ from datetime import datetime, timedelta
 import jwt,json,base64,os
 from django.conf import settings
 from usuarios.models import *
-from models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
+from usuarios.models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa,ConfiguracionApi, PromptComparacion
 from django.utils import timezone
 from django.db.models import Q
+import requests
+import json
+import time
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def registrar_usuario(request):
@@ -897,3 +901,183 @@ def listar_lenguajes_usuario(request, usuario_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["POST"])
+def probar_comparacion_ia(request):
+    """
+    View de prueba para enviar códigos a la API de IA
+    
+    Body esperado:
+    {
+        "id_comparacion": 1
+    }
+    """
+    try:
+        # Obtener el ID de la comparación
+        data = json.loads(request.body)
+        id_comparacion = data.get('id_comparacion')
+        
+        if not id_comparacion:
+            return JsonResponse({
+                'error': 'Se requiere id_comparacion'
+            }, status=400)
+        
+        # 1. Obtener la comparación
+        try:
+            comparacion = ComparacionesIndividuales.objects.get(
+                id=id_comparacion
+            )
+        except ComparacionesIndividuales.DoesNotExist:
+            return JsonResponse({
+                'error': f'Comparación {id_comparacion} no encontrada'
+            }, status=404)
+        
+        # 2. Obtener el modelo IA
+        if not comparacion.id_modelo_ia:
+            return JsonResponse({
+                'error': 'La comparación no tiene un modelo de IA asignado'
+            }, status=400)
+        
+        modelo_ia = comparacion.id_modelo_ia
+        
+        # 3. Obtener la configuración de API del modelo
+        try:
+            config_api = ConfiguracionApi.objects.get(
+                id_modelo_ia_id=modelo_ia.id
+            )
+        except ConfiguracionApi.DoesNotExist:
+            return JsonResponse({
+                'error': 'No hay configuración de API para este modelo'
+            }, status=404)
+        
+        # 4. Obtener el prompt
+        try:
+            prompt_config = PromptComparacion.objects.get(
+                id_config_id=config_api.id_config
+            )
+        except PromptComparacion.DoesNotExist:
+            return JsonResponse({
+                'error': 'No hay prompt configurado para este modelo'
+            }, status=404)
+        
+        # 5. Reemplazar placeholders en el prompt
+        prompt_procesado = prompt_config.template_prompt.replace(
+            '{{codigo_a}}', comparacion.codigo_1
+        ).replace(
+            '{{codigo_b}}', comparacion.codigo_2
+        )
+        
+        # 6. Detectar si es OpenAI o Anthropic según la URL
+        es_anthropic = 'anthropic.com' in config_api.endpoint_url.lower()
+        es_openai = 'openai.com' in config_api.endpoint_url.lower()
+        
+        # 7. Preparar headers y payload según el proveedor
+        if es_anthropic:
+            # Para Claude/Anthropic
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': config_api.api_key,
+                'anthropic-version': '2023-06-01'
+            }
+            
+            payload = {
+                'model': 'claude-3-haiku-20240307',
+                'max_tokens': 4000,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ]
+            }
+            
+        elif es_openai:
+            # Para OpenAI/ChatGPT
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {config_api.api_key}'
+            }
+            
+            payload = {
+                'model': 'gpt-3.5-turbo',
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ],
+                'max_tokens': 4000,
+                'temperature': 0.7
+            }
+        else:
+            return JsonResponse({
+                'error': 'Proveedor de IA no soportado'
+            }, status=400)
+        
+        # 8. Hacer la petición
+        inicio = time.time()
+        
+        response = requests.post(
+            config_api.endpoint_url,
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+        
+        tiempo_respuesta = time.time() - inicio
+        
+        # 9. Verificar respuesta
+        if response.status_code != 200:
+            return JsonResponse({
+                'error': f'Error de la API: {response.status_code}',
+                'detalle': response.text
+            }, status=response.status_code)
+        
+        # 10. Extraer la respuesta según el proveedor
+        response_data = response.json()
+        
+        if es_anthropic:
+            # Respuesta de Claude
+            respuesta_ia = response_data['content'][0]['text']
+            tokens_usados = (
+                response_data.get('usage', {}).get('input_tokens', 0) + 
+                response_data.get('usage', {}).get('output_tokens', 0)
+            )
+            
+        elif es_openai:
+            # Respuesta de OpenAI
+            respuesta_ia = response_data['choices'][0]['message']['content']
+            tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
+        
+        # 11. Retornar resultado (solo para prueba, NO guardamos aún)
+        return JsonResponse({
+            'mensaje': 'Comparación exitosa',
+            'comparacion_id': id_comparacion,
+            'modelo_usado': modelo_ia.nombre,
+            'proveedor': 'Anthropic' if es_anthropic else 'OpenAI',
+            'tiempo_respuesta_segundos': round(tiempo_respuesta, 2),
+            'tokens_usados': tokens_usados,
+            'respuesta_ia': respuesta_ia,
+            'codigos_comparados': {
+                'codigo_1': comparacion.codigo_1[:100] + '...' if len(comparacion.codigo_1) > 100 else comparacion.codigo_1,
+                'codigo_2': comparacion.codigo_2[:100] + '...' if len(comparacion.codigo_2) > 100 else comparacion.codigo_2
+            }
+        }, status=200)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'JSON inválido en el body'
+        }, status=400)
+    except requests.Timeout:
+        return JsonResponse({
+            'error': 'Timeout al llamar a la API de IA'
+        }, status=504)
+    except requests.RequestException as e:
+        return JsonResponse({
+            'error': f'Error en la petición HTTP: {str(e)}'
+        }, status=500)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error interno: {str(e)}'
+        }, status=500)

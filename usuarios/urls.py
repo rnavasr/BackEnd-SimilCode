@@ -21,5 +21,6 @@ urlpatterns = [
     path('listar_modelos_admin/', views.listar_modelos_admin, name='listar_modelos_admin'),
     path('listar_modelos_usuario/<int:usuario_id>/', views.listar_modelos_usuario, name='listar_modelos_usuario'),
     path('mostrar_datos_comparacion_individual/<int:comparacion_id>/', views.obtener_comparacion_individual, name="obtener_comparacion_individual"),
-    path('listar_lenguajes/<int:usuario_id>', views.listar_lenguajes_usuario, name='listar_lenguajes_usuario')
+    path('listar_lenguajes/<int:usuario_id>', views.listar_lenguajes_usuario, name='listar_lenguajes_usuario'),
+    path('probar_comparacion_ia/', views.probar_comparacion_ia, name="probar_comparacion_ia")
 ]
