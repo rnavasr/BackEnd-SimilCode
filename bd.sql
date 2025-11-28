@@ -47,10 +47,10 @@ CREATE TABLE proveedores_ia (
 
 CREATE TABLE modelos_ia (
     id_modelo_ia SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    version VARCHAR(50),
     id_proveedor INTEGER REFERENCES proveedores_ia(id_proveedor),
     id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
+    nombre VARCHAR(100) NOT NULL,
+    version VARCHAR(50),
     descripcion TEXT,
     color_ia VARCHAR(7),
     imagen_ia BYTEA,
@@ -59,7 +59,73 @@ CREATE TABLE modelos_ia (
     recomendado BOOLEAN DEFAULT false
 );
 
-CREATE TABLE configuracion_api (
+CREATE TABLE prompt_comparacion (
+    id_prompt SERIAL PRIMARY KEY,
+    template_prompt TEXT NOT NULL,
+    descripcion TEXT,
+    version VARCHAR(20),
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE configuracion_claude (
+    id_config_claude SERIAL PRIMARY KEY,
+    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
+    id_prompt INTEGER NOT NULL REFERENCES prompt_comparacion(id_prompt) ON DELETE RESTRICT,
+    endpoint_url VARCHAR(500) NOT NULL DEFAULT 'https://api.anthropic.com/v1/messages',
+    api_key VARCHAR(500) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    max_tokens INTEGER DEFAULT 4000,
+    anthropic_version VARCHAR(20) DEFAULT '2023-06-01',
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE configuracion_openai (
+    id_config_openai SERIAL PRIMARY KEY,
+    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
+    id_prompt INTEGER NOT NULL REFERENCES prompt_comparacion(id_prompt) ON DELETE RESTRICT,
+    endpoint_url VARCHAR(500) NOT NULL DEFAULT 'https://api.openai.com/v1/chat/completions',
+    api_key VARCHAR(500) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    max_tokens INTEGER DEFAULT 4000,
+    temperature DECIMAL(3,2) DEFAULT 0.7,
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE configuracion_gemini (
+    id_config_gemini SERIAL PRIMARY KEY,
+    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
+    id_prompt INTEGER NOT NULL REFERENCES prompt_comparacion(id_prompt) ON DELETE RESTRICT,
+    endpoint_url VARCHAR(500) NOT NULL DEFAULT 'https://generativelanguage.googleapis.com/v1beta/models',
+    api_key VARCHAR(500) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    max_tokens INTEGER DEFAULT 4000,
+    temperature DECIMAL(3,2) DEFAULT 0.7,
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE configuracion_deepseek (
+    id_config_deepseek SERIAL PRIMARY KEY,
+    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id_modelo_ia) ON DELETE CASCADE,
+    id_prompt INTEGER NOT NULL REFERENCES prompt_comparacion(id_prompt) ON DELETE RESTRICT,
+    endpoint_url VARCHAR(500) NOT NULL DEFAULT 'https://api.deepseek.com/v1/chat/completions',
+    api_key VARCHAR(500) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    max_tokens INTEGER DEFAULT 4000,
+    temperature DECIMAL(3,2) DEFAULT 0.7,
+    activo BOOLEAN DEFAULT true,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+'CREATE TABLE configuracion_api (
     id_config SERIAL PRIMARY KEY,
     id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id),
     endpoint_url VARCHAR(500) NOT NULL,  -- URL completa de la API
@@ -71,7 +137,7 @@ CREATE TABLE prompt_comparacion (
     id_config INTEGER UNIQUE NOT NULL REFERENCES configuracion_api(id_config),
     template_prompt TEXT NOT NULL,
     fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+);'
 
 -- ============================================
 -- TABLAS DE LENGUAJES Y COMPARACIONES
