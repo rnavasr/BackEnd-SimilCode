@@ -905,14 +905,6 @@ def listar_lenguajes_usuario(request, usuario_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def probar_comparacion_ia(request):
-    """
-    View de prueba para enviar códigos a la API de IA
-    
-    Body esperado:
-    {
-        "id_comparacion": 1
-    }
-    """
     try:
         # Obtener el ID de la comparación
         data = json.loads(request.body)
