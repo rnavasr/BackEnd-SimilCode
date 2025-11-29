@@ -902,9 +902,11 @@ def listar_lenguajes_usuario(request, usuario_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
+import re  # Agregar al inicio del archivo
+
 @csrf_exempt
 @require_http_methods(["POST"])
-def probar_comparacion_ia(request, id_comparacion):
+def crear_comparacion_ia(request, id_comparacion):
     try:
         # El ID de la comparación viene desde la URL
         if not id_comparacion:
@@ -1123,9 +1125,42 @@ def probar_comparacion_ia(request, id_comparacion):
             respuesta_ia = response_data['choices'][0]['message']['content']
             tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
         
-        # 10. Retornar resultado (solo para prueba, NO guardamos aún)
+        # 10. NUEVO: Extraer el porcentaje de similitud general
+        porcentaje_similitud = None
+        patron_similitud = r'SIMILITUD GENERAL:\s*(\d+)'
+        match = re.search(patron_similitud, respuesta_ia, re.IGNORECASE)
+        
+        if match:
+            porcentaje_similitud = int(match.group(1))
+        else:
+            # Si no encuentra el patrón, intentar otros formatos comunes
+            patron_alternativo = r'similitud general[:\s]*(\d+)%?'
+            match_alt = re.search(patron_alternativo, respuesta_ia, re.IGNORECASE)
+            if match_alt:
+                porcentaje_similitud = int(match_alt.group(1))
+        
+        # 11. NUEVO: Guardar en la base de datos
+        if porcentaje_similitud is not None:
+            # Eliminar resultado anterior si existe (para evitar duplicados)
+            ResultadosSimilitudIndividual.objects.filter(
+                id_comparacion_individual=comparacion
+            ).delete()
+            
+            # Crear nuevo resultado
+            resultado = ResultadosSimilitudIndividual.objects.create(
+                id_comparacion_individual=comparacion,
+                porcentaje_similitud=porcentaje_similitud,
+                explicacion=respuesta_ia
+            )
+            
+            mensaje_guardado = 'Resultado guardado exitosamente'
+        else:
+            mensaje_guardado = 'No se pudo extraer el porcentaje de similitud. Respuesta no guardada.'
+        
+        # 12. Retornar resultado
         return JsonResponse({
             'mensaje': 'Comparación exitosa',
+            'guardado': mensaje_guardado,
             'comparacion_id': id_comparacion,
             'modelo_usado': modelo_ia.nombre,
             'proveedor': proveedor,
@@ -1136,6 +1171,7 @@ def probar_comparacion_ia(request, id_comparacion):
             },
             'tiempo_respuesta_segundos': round(tiempo_respuesta, 2),
             'tokens_usados': tokens_usados,
+            'porcentaje_similitud': porcentaje_similitud,
             'respuesta_ia': respuesta_ia,
             'codigos_comparados': {
                 'codigo_1': comparacion.codigo_1[:100] + '...' if len(comparacion.codigo_1) > 100 else comparacion.codigo_1,

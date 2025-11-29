@@ -225,10 +225,10 @@ class ResultadosSimilitudGrupal(models.Model):
         app_label = 'app'
 
 class ResultadosSimilitudIndividual(models.Model):
-    comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING)
+    id_resultado_similitud_individual = models.AutoField(primary_key=True)
+    id_comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING, db_column='id_comparacion_individual')
     porcentaje_similitud = models.DecimalField(max_digits=5, decimal_places=2)
     explicacion = models.TextField(blank=True, null=True)
-    probabilidad_similitud = models.CharField(max_length=10, blank=True, null=True)
 
     class Meta:
         managed = False

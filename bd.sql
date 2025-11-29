@@ -184,10 +184,9 @@ CREATE TABLE codigos_fuente (
 -- Tabla de resultados de similitud para comparaciones individuales
 CREATE TABLE resultados_similitud_individual (
     id_resultado_similitud_individual SERIAL PRIMARY KEY,
-    id_comparacion_individual INTEGER NOT NULL REFERENCES comparaciones_individuales(id_comparacion_individual) ON DELETE CASCADE,
-    porcentaje_similitud DECIMAL(5, 2) NOT NULL,
-    explicacion TEXT,
-    probabilidad_similitud VARCHAR(10) CHECK (probabilidad_similitud IN ('bajo', 'medio', 'alto'))
+    id_comparacion_individual INTEGER NOT NULL REFERENCES comparaciones_individuales(id),
+    porcentaje_similitud INT NOT NULL,
+    explicacion TEXT
 );
 
 -- Tabla de resultados de similitud para comparaciones grupales
