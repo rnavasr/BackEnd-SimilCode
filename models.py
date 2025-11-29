@@ -47,33 +47,6 @@ class ComparacionesIndividuales(models.Model):
         db_table = 'comparaciones_individuales'
         app_label = 'app'
 
-class ConfiguracionApi(models.Model):
-    modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING)
-    metodo_http = models.CharField(max_length=10, blank=True, null=True)
-    path_endpoint = models.CharField(max_length=255, blank=True, null=True)
-    formato_request = models.JSONField()
-    formato_response = models.JSONField()
-    timeout_segundos = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'configuracion_api'
-        app_label = 'app'
-
-class CredencialesApi(models.Model):
-    modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING)
-    api_key_encrypted = models.BinaryField()
-    api_secret_encrypted = models.BinaryField(blank=True, null=True)
-    headers_auth = models.JSONField(blank=True, null=True)
-    fecha_creacion = models.DateTimeField(blank=True, null=True)
-    ultima_rotacion = models.DateTimeField(blank=True, null=True)
-    expira_en = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'credenciales_api'
-        app_label = 'app'
-
 class DatosPersonales(models.Model):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
@@ -113,26 +86,90 @@ class ModelosIa(models.Model):
         db_table = 'modelos_ia'
         app_label = 'app'
 
-class ConfiguracionApi(models.Model):
-    id_config = models.AutoField(primary_key=True)
-    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
-    endpoint_url = models.CharField(max_length=500)
-    api_key = models.CharField(max_length=500)
-
-    class Meta:
-        managed = False
-        db_table = 'configuracion_api'
-        app_label = 'app'
-
 class PromptComparacion(models.Model):
     id_prompt = models.AutoField(primary_key=True)
-    id_config = models.OneToOneField(ConfiguracionApi, models.DO_NOTHING, db_column='id_config')
     template_prompt = models.TextField()
+    descripcion = models.TextField(blank=True, null=True)
+    version = models.CharField(max_length=20, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
     fecha_modificacion = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'prompt_comparacion'
+        app_label = 'app'
+
+class ConfiguracionClaude(models.Model):
+    id_config_claude = models.AutoField(primary_key=True)
+    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
+    id_prompt = models.ForeignKey('PromptComparacion', models.DO_NOTHING, db_column='id_prompt')
+    endpoint_url = models.CharField(max_length=500)
+    api_key = models.CharField(max_length=500)
+    model_name = models.CharField(max_length=100)
+    max_tokens = models.IntegerField(blank=True, null=True)
+    anthropic_version = models.CharField(max_length=20, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'configuracion_claude'
+        app_label = 'app'
+
+class ConfiguracionDeepseek(models.Model):
+    id_config_deepseek = models.AutoField(primary_key=True)
+    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
+    id_prompt = models.ForeignKey('PromptComparacion', models.DO_NOTHING, db_column='id_prompt')
+    endpoint_url = models.CharField(max_length=500)
+    api_key = models.CharField(max_length=500)
+    model_name = models.CharField(max_length=100)
+    max_tokens = models.IntegerField(blank=True, null=True)
+    temperature = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'configuracion_deepseek'
+        app_label = 'app'
+
+class ConfiguracionGemini(models.Model):
+    id_config_gemini = models.AutoField(primary_key=True)
+    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
+    id_prompt = models.ForeignKey('PromptComparacion', models.DO_NOTHING, db_column='id_prompt')
+    endpoint_url = models.CharField(max_length=500)
+    api_key = models.CharField(max_length=500)
+    model_name = models.CharField(max_length=100)
+    max_tokens = models.IntegerField(blank=True, null=True)
+    temperature = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'configuracion_gemini'
+        app_label = 'app'
+
+class ConfiguracionOpenai(models.Model):
+    id_config_openai = models.AutoField(primary_key=True)
+    id_modelo_ia = models.OneToOneField('ModelosIa', models.DO_NOTHING, db_column='id_modelo_ia')
+    id_prompt = models.ForeignKey('PromptComparacion', models.DO_NOTHING, db_column='id_prompt')
+    endpoint_url = models.CharField(max_length=500)
+    api_key = models.CharField(max_length=500)
+    model_name = models.CharField(max_length=100)
+    max_tokens = models.IntegerField(blank=True, null=True)
+    temperature = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'configuracion_openai'
         app_label = 'app'
 
 class ProveedoresIa(models.Model):
@@ -148,19 +185,6 @@ class ProveedoresIa(models.Model):
         db_table = 'proveedores_ia'
         app_label = 'app'
 
-class PruebasModelos(models.Model):
-    modelo_ia = models.ForeignKey(ModelosIa, models.DO_NOTHING)
-    usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
-    precision = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
-    tiempo_respuesta_ms = models.IntegerField(blank=True, null=True)
-    efectividad = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
-    observaciones = models.TextField(blank=True, null=True)
-    fecha_prueba = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'pruebas_modelos'
-        app_label = 'app'
 
 class ResultadosEficienciaGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
@@ -220,20 +244,6 @@ class Roles(models.Model):
         db_table = 'roles'
         app_label = 'app'
 
-class UsoApis(models.Model):
-    modelo_ia = models.ForeignKey(ModelosIa, models.DO_NOTHING, blank=True, null=True)
-    usuario = models.ForeignKey('Usuarios', models.DO_NOTHING, blank=True, null=True)
-    tokens_consumidos = models.IntegerField(blank=True, null=True)
-    tiempo_respuesta_ms = models.IntegerField(blank=True, null=True)
-    costo = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True)
-    exitoso = models.BooleanField(blank=True, null=True)
-    mensaje_error = models.TextField(blank=True, null=True)
-    fecha_uso = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'uso_apis'
-        app_label = 'app'
 
 class Usuarios(models.Model):
     usuario = models.CharField(unique=True, max_length=50)

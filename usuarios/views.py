@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import jwt,json,base64,os
 from django.conf import settings
 from usuarios.models import *
-from usuarios.models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa,ConfiguracionApi, PromptComparacion
+from usuarios.models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
 from django.utils import timezone
 from django.db.models import Q
 import requests
@@ -904,12 +904,9 @@ def listar_lenguajes_usuario(request, usuario_id):
     
 @csrf_exempt
 @require_http_methods(["POST"])
-def probar_comparacion_ia(request):
+def probar_comparacion_ia(request, id_comparacion):
     try:
-        # Obtener el ID de la comparación
-        data = json.loads(request.body)
-        id_comparacion = data.get('id_comparacion')
-        
+        # El ID de la comparación viene desde la URL
         if not id_comparacion:
             return JsonResponse({
                 'error': 'Se requiere id_comparacion'
@@ -933,25 +930,65 @@ def probar_comparacion_ia(request):
         
         modelo_ia = comparacion.id_modelo_ia
         
-        # 3. Obtener la configuración de API del modelo
+        # 3. Obtener la configuración según el tipo de modelo
+        config = None
+        proveedor = None
+        prompt_config = None
+        
+        # Intentar obtener configuración de cada proveedor
         try:
-            config_api = ConfiguracionApi.objects.get(
-                id_modelo_ia_id=modelo_ia.id
+            config = ConfiguracionClaude.objects.select_related('id_prompt').get(
+                id_modelo_ia_id=modelo_ia.id,
+                activo=True
             )
-        except ConfiguracionApi.DoesNotExist:
+            proveedor = 'Claude'
+            prompt_config = config.id_prompt
+        except ConfiguracionClaude.DoesNotExist:
+            pass
+        
+        if not config:
+            try:
+                config = ConfiguracionOpenai.objects.select_related('id_prompt').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'OpenAI'
+                prompt_config = config.id_prompt
+            except ConfiguracionOpenai.DoesNotExist:
+                pass
+        
+        if not config:
+            try:
+                config = ConfiguracionGemini.objects.select_related('id_prompt').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'Gemini'
+                prompt_config = config.id_prompt
+            except ConfiguracionGemini.DoesNotExist:
+                pass
+        
+        if not config:
+            try:
+                config = ConfiguracionDeepseek.objects.select_related('id_prompt').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'DeepSeek'
+                prompt_config = config.id_prompt
+            except ConfiguracionDeepseek.DoesNotExist:
+                pass
+        
+        if not config or not prompt_config:
             return JsonResponse({
-                'error': 'No hay configuración de API para este modelo'
+                'error': 'No hay configuración activa para este modelo de IA'
             }, status=404)
         
-        # 4. Obtener el prompt
-        try:
-            prompt_config = PromptComparacion.objects.get(
-                id_config_id=config_api.id_config
-            )
-        except PromptComparacion.DoesNotExist:
+        # 4. Verificar que el prompt esté activo
+        if not prompt_config.activo:
             return JsonResponse({
-                'error': 'No hay prompt configurado para este modelo'
-            }, status=404)
+                'error': 'El prompt configurado no está activo'
+            }, status=400)
         
         # 5. Reemplazar placeholders en el prompt
         prompt_procesado = prompt_config.template_prompt.replace(
@@ -960,22 +997,19 @@ def probar_comparacion_ia(request):
             '{{codigo_b}}', comparacion.codigo_2
         )
         
-        # 6. Detectar si es OpenAI o Anthropic según la URL
-        es_anthropic = 'anthropic.com' in config_api.endpoint_url.lower()
-        es_openai = 'openai.com' in config_api.endpoint_url.lower()
+        # 6. Preparar headers y payload según el proveedor
+        headers = {}
+        payload = {}
         
-        # 7. Preparar headers y payload según el proveedor
-        if es_anthropic:
-            # Para Claude/Anthropic
+        if proveedor == 'Claude':
             headers = {
                 'Content-Type': 'application/json',
-                'x-api-key': config_api.api_key,
-                'anthropic-version': '2023-06-01'
+                'x-api-key': config.api_key,
+                'anthropic-version': config.anthropic_version
             }
-            
             payload = {
-                'model': 'claude-3-haiku-20240307',
-                'max_tokens': 4000,
+                'model': config.model_name,
+                'max_tokens': config.max_tokens,
                 'messages': [
                     {
                         'role': 'user',
@@ -984,34 +1018,70 @@ def probar_comparacion_ia(request):
                 ]
             }
             
-        elif es_openai:
-            # Para OpenAI/ChatGPT
+        elif proveedor == 'OpenAI':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config_api.api_key}'
+                'Authorization': f'Bearer {config.api_key}'
             }
-            
             payload = {
-                'model': 'gpt-3.5-turbo',
+                'model': config.model_name,
                 'messages': [
                     {
                         'role': 'user',
                         'content': prompt_procesado
                     }
                 ],
-                'max_tokens': 4000,
-                'temperature': 0.7
+                'max_tokens': config.max_tokens,
+                'temperature': float(config.temperature)
             }
-        else:
-            return JsonResponse({
-                'error': 'Proveedor de IA no soportado'
-            }, status=400)
+            
+        elif proveedor == 'Gemini':
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            # Gemini usa la API key en la URL
+            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={config.api_key}"
+            payload = {
+                'contents': [
+                    {
+                        'parts': [
+                            {
+                                'text': prompt_procesado
+                            }
+                        ]
+                    }
+                ],
+                'generationConfig': {
+                    'maxOutputTokens': config.max_tokens,
+                    'temperature': float(config.temperature)
+                }
+            }
+            
+        elif proveedor == 'DeepSeek':
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {config.api_key}'
+            }
+            payload = {
+                'model': config.model_name,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ],
+                'max_tokens': config.max_tokens,
+                'temperature': float(config.temperature)
+            }
         
-        # 8. Hacer la petición
+        # 7. Hacer la petición
         inicio = time.time()
         
+        # Para Gemini, usamos la URL modificada
+        url = endpoint_url if proveedor == 'Gemini' else config.endpoint_url
+        
         response = requests.post(
-            config_api.endpoint_url,
+            url,
             headers=headers,
             json=payload,
             timeout=60
@@ -1019,35 +1089,51 @@ def probar_comparacion_ia(request):
         
         tiempo_respuesta = time.time() - inicio
         
-        # 9. Verificar respuesta
+        # 8. Verificar respuesta
         if response.status_code != 200:
             return JsonResponse({
-                'error': f'Error de la API: {response.status_code}',
+                'error': f'Error de la API {proveedor}: {response.status_code}',
                 'detalle': response.text
             }, status=response.status_code)
         
-        # 10. Extraer la respuesta según el proveedor
+        # 9. Extraer la respuesta según el proveedor
         response_data = response.json()
+        respuesta_ia = None
+        tokens_usados = 0
         
-        if es_anthropic:
-            # Respuesta de Claude
+        if proveedor == 'Claude':
             respuesta_ia = response_data['content'][0]['text']
             tokens_usados = (
                 response_data.get('usage', {}).get('input_tokens', 0) + 
                 response_data.get('usage', {}).get('output_tokens', 0)
             )
             
-        elif es_openai:
-            # Respuesta de OpenAI
+        elif proveedor == 'OpenAI':
+            respuesta_ia = response_data['choices'][0]['message']['content']
+            tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
+            
+        elif proveedor == 'Gemini':
+            respuesta_ia = response_data['candidates'][0]['content']['parts'][0]['text']
+            tokens_usados = (
+                response_data.get('usageMetadata', {}).get('promptTokenCount', 0) +
+                response_data.get('usageMetadata', {}).get('candidatesTokenCount', 0)
+            )
+            
+        elif proveedor == 'DeepSeek':
             respuesta_ia = response_data['choices'][0]['message']['content']
             tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
         
-        # 11. Retornar resultado (solo para prueba, NO guardamos aún)
+        # 10. Retornar resultado (solo para prueba, NO guardamos aún)
         return JsonResponse({
             'mensaje': 'Comparación exitosa',
             'comparacion_id': id_comparacion,
             'modelo_usado': modelo_ia.nombre,
-            'proveedor': 'Anthropic' if es_anthropic else 'OpenAI',
+            'proveedor': proveedor,
+            'model_name': config.model_name,
+            'prompt_usado': {
+                'version': prompt_config.version,
+                'descripcion': prompt_config.descripcion
+            },
             'tiempo_respuesta_segundos': round(tiempo_respuesta, 2),
             'tokens_usados': tokens_usados,
             'respuesta_ia': respuesta_ia,

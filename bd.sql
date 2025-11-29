@@ -125,20 +125,6 @@ CREATE TABLE configuracion_deepseek (
     fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-'CREATE TABLE configuracion_api (
-    id_config SERIAL PRIMARY KEY,
-    id_modelo_ia INTEGER UNIQUE NOT NULL REFERENCES modelos_ia(id),
-    endpoint_url VARCHAR(500) NOT NULL,  -- URL completa de la API
-    api_key VARCHAR(500) NOT NULL      -- La API key (puedes encriptar después)
-);
-
-CREATE TABLE prompt_comparacion (
-    id_prompt SERIAL PRIMARY KEY,
-    id_config INTEGER UNIQUE NOT NULL REFERENCES configuracion_api(id_config),
-    template_prompt TEXT NOT NULL,
-    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);'
-
 -- ============================================
 -- TABLAS DE LENGUAJES Y COMPARACIONES
 -- ============================================
@@ -147,7 +133,7 @@ CREATE TABLE prompt_comparacion (
 CREATE TABLE lenguajes (
     id_lenguaje SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL UNIQUE,
-    extension VARCHAR(10)
+    extension VARCHAR(10)   
 );
 
 CREATE TABLE comparaciones_individuales (
@@ -236,18 +222,6 @@ CREATE TABLE resultados_eficiencia_grupal (
     es_mas_eficiente BOOLEAN
 );
 
--- Tabla de pruebas de modelos (para objetivo específico 1)
-CREATE TABLE pruebas_modelos (
-    id_prueba_modelo SERIAL PRIMARY KEY,
-    id_modelo_ia INTEGER NOT NULL REFERENCES modelos_ia(id_modelo_ia),
-    id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario),
-    precision DECIMAL(5, 2),
-    tiempo_respuesta_ms INTEGER,
-    efectividad DECIMAL(5, 2),
-    observaciones TEXT,
-    fecha_prueba TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Insertar algunos roles básicos
 INSERT INTO roles (nombre, descripcion) VALUES 
 ('admin', 'Administrador del sistema'),
@@ -256,7 +230,6 @@ INSERT INTO roles (nombre, descripcion) VALUES
 
 -- Si tienen tablas en postgres y quieren traerlas al backend, pueden usar el siguiente comando:
 python manage.py inspectdb > models.py
-
 
 -- Crear un archivo de requerimientos para el proyecto
 pip freeze > requirements.txt
