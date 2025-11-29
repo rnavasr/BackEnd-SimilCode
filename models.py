@@ -227,7 +227,7 @@ class ResultadosSimilitudGrupal(models.Model):
 class ResultadosSimilitudIndividual(models.Model):
     id_resultado_similitud_individual = models.AutoField(primary_key=True)
     id_comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING, db_column='id_comparacion_individual')
-    porcentaje_similitud = models.DecimalField(max_digits=5, decimal_places=2)
+    porcentaje_similitud = models.IntegerField()
     explicacion = models.TextField(blank=True, null=True)
 
     class Meta:
