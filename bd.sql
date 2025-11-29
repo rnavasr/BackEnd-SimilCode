@@ -137,7 +137,7 @@ CREATE TABLE lenguajes (
 );
 
 CREATE TABLE comparaciones_individuales (
-    id_comparacion_individual SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario),
     id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),

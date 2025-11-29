@@ -1195,3 +1195,53 @@ def crear_comparacion_ia(request, id_comparacion):
         return JsonResponse({
             'error': f'Error interno: {str(e)}'
         }, status=500)
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def obtener_resultados_similitud_individual(request, comparacion_id):
+    """Obtener los resultados de similitud de una comparación individual"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener la comparación individual
+        comparacion = ComparacionesIndividuales.objects.select_related(
+            'usuario'
+        ).get(id=comparacion_id)
+        
+        # Verificar que el usuario autenticado sea el dueño de la comparación
+        usuario_id_token = payload.get('usuario_id')
+        if comparacion.usuario.id != usuario_id_token:
+            return JsonResponse({
+                'error': 'No tienes permiso para ver estos resultados'
+            }, status=403)
+        
+        # Obtener todos los resultados de similitud para esta comparación
+        resultados = ResultadosSimilitudIndividual.objects.filter(
+            id_comparacion_individual=comparacion_id
+        )
+        
+        # Construir la lista de resultados
+        resultados_list = []
+        for resultado in resultados:
+            resultados_list.append({
+                'porcentaje_similitud': resultado.porcentaje_similitud,
+                'explicacion': resultado.explicacion
+            })
+        
+        return JsonResponse({
+            'resultados': resultados_list
+        }, status=200)
+        
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({
+            'error': f'No se encontró la comparación con ID {comparacion_id}'
+        }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
