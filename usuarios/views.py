@@ -14,6 +14,7 @@ from django.db.models import Q
 import requests
 import json
 import time
+import re
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -902,7 +903,7 @@ def listar_lenguajes_usuario(request, usuario_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
-import re  # Agregar al inicio del archivo
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
