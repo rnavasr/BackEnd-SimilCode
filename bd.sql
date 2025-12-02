@@ -21,7 +21,7 @@ CREATE TABLE datos_personales (
 
 -- Tabla de usuarios
 CREATE TABLE usuarios (
-    id_usuario SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     usuario VARCHAR(50) NOT NULL UNIQUE,
     contrasenia VARCHAR(255) NOT NULL,
     id_datos_personales INTEGER NOT NULL REFERENCES datos_personales(id_datos_personales) ON DELETE CASCADE,
@@ -132,8 +132,10 @@ CREATE TABLE configuracion_deepseek (
 -- Tabla de lenguajes de programación
 CREATE TABLE lenguajes (
     id_lenguaje SERIAL PRIMARY KEY,
+    id_usuario INTEGER REFERENCES usuarios(id),
     nombre VARCHAR(50) NOT NULL UNIQUE,
-    extension VARCHAR(10)   
+    extension VARCHAR(10) NOT NULL UNIQUE,
+    estado BOOLEAN DEFAULT true
 );
 
 CREATE TABLE comparaciones_individuales (

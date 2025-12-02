@@ -154,3 +154,38 @@ def editar_lenguaje(request, lenguaje_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def cambiar_estado_lenguaje(request, lenguaje_id):
+    """Cambiar el estado de un lenguaje (activar/desactivar)"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Buscar el lenguaje
+        try:
+            lenguaje = Lenguajes.objects.get(id_lenguaje=lenguaje_id)
+        except Lenguajes.DoesNotExist:
+            return JsonResponse({'error': 'Lenguaje no encontrado'}, status=404)
+        
+        # Cambiar el estado (toggle)
+        lenguaje.estado = not lenguaje.estado
+        lenguaje.save()
+        
+        estado_texto = "activado" if lenguaje.estado else "desactivado"
+        
+        return JsonResponse({
+            'mensaje': f'Lenguaje {estado_texto} exitosamente',
+            'id': lenguaje.id_lenguaje,
+            'nombre': lenguaje.nombre,
+            'estado': lenguaje.estado
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
