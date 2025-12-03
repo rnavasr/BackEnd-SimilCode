@@ -43,11 +43,17 @@ def crear_lenguaje(request):
         # Obtener datos del FormData
         nombre = request.POST.get('nombre')
         extension = request.POST.get('extension')
+        usuario_id = request.POST.get('usuario_id')  # 👈 OBTENER USUARIO_ID
         
         # Validaciones
         if not nombre:
             return JsonResponse({
                 'error': 'El campo nombre es requerido'
+            }, status=400)
+        
+        if not usuario_id:
+            return JsonResponse({
+                'error': 'El campo usuario_id es requerido'
             }, status=400)
         
         # Verificar si ya existe
@@ -56,10 +62,19 @@ def crear_lenguaje(request):
                 'error': f'El lenguaje "{nombre}" ya existe'
             }, status=400)
         
-        # Crear el lenguaje
+        # Obtener el usuario
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({
+                'error': 'Usuario no encontrado'
+            }, status=404)
+        
+        # Crear el lenguaje con el usuario
         lenguaje = Lenguajes.objects.create(
             nombre=nombre,
-            extension=extension
+            extension=extension,
+            usuario=usuario  # 👈 ASIGNAR USUARIO
         )
         
         return JsonResponse({
@@ -97,7 +112,8 @@ def listar_lenguajes_usuario(request, usuario_id):
         ).values(
             'id', 
             'nombre', 
-            'extension'
+            'extension',
+            'estado'
         ).order_by('nombre')
         
         return JsonResponse({
@@ -156,7 +172,7 @@ def editar_lenguaje(request, lenguaje_id):
         return JsonResponse({'error': str(e)}, status=500)
     
 @csrf_exempt
-@require_http_methods(["PUT", "POST"])
+@require_http_methods(["PUT", "POST"])  # Aceptar ambos métodos
 def cambiar_estado_lenguaje(request, lenguaje_id):
     """Cambiar el estado de un lenguaje (activar/desactivar)"""
     payload = validar_token(request)
@@ -168,9 +184,9 @@ def cambiar_estado_lenguaje(request, lenguaje_id):
         return JsonResponse(payload, status=401)
     
     try:
-        # Buscar el lenguaje
+        # Buscar el lenguaje - CORREGIR EL NOMBRE DEL CAMPO
         try:
-            lenguaje = Lenguajes.objects.get(id_lenguaje=lenguaje_id)
+            lenguaje = Lenguajes.objects.get(id=lenguaje_id)  # Cambiar id_lenguaje por id
         except Lenguajes.DoesNotExist:
             return JsonResponse({'error': 'Lenguaje no encontrado'}, status=404)
         
@@ -182,7 +198,7 @@ def cambiar_estado_lenguaje(request, lenguaje_id):
         
         return JsonResponse({
             'mensaje': f'Lenguaje {estado_texto} exitosamente',
-            'id': lenguaje.id_lenguaje,
+            'id': lenguaje.id,  # Cambiar id_lenguaje por id
             'nombre': lenguaje.nombre,
             'estado': lenguaje.estado
         }, status=200)
