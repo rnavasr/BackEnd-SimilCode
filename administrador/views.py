@@ -1,13 +1,13 @@
 from django.conf import settings
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, QueryDict
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import requests
 import jwt
 from django.db.models import Q
 from administrador.models import *
-
+from django.utils import timezone
 from datetime import datetime
 import base64
 
@@ -233,3 +233,648 @@ def listar_proveedores(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_modelo_claude(request):
+    """Crear modelo IA + configuración Claude"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        # Datos del modelo principal
+        nombre = request.POST.get('nombre')
+        version = request.POST.get('version')
+        descripcion = request.POST.get('descripcion')
+        color_ia = request.POST.get('color_ia')
+        proveedor_id = 1  # Claude = 1
+        usuario_id = request.POST.get('usuario_id')
+
+        # Validaciones básicas
+        if not nombre:
+            return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+        if not usuario_id:
+            return JsonResponse({'error': 'El campo usuario_id es requerido'}, status=400)
+
+        # Validar que no exista el modelo
+        if ModelosIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+
+        # Obtener usuario
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+        # Crear modelo IA
+        modelo = ModelosIa.objects.create(
+            nombre=nombre,
+            version=version,
+            proveedor_id=proveedor_id,
+            descripcion=descripcion,
+            activo=True,
+            recomendado=False,
+            fecha_creacion=timezone.now(),
+            color_ia=color_ia,
+            id_usuario=usuario
+        )
+
+        # Crear configuración Claude
+        ConfiguracionClaude.objects.create(
+            id_modelo_ia=modelo,
+            id_prompt_id=1,
+            endpoint_url=request.POST.get("endpoint_url", ""),
+            api_key=request.POST.get("api_key", ""),
+            model_name=request.POST.get("model_name", ""),
+            max_tokens=request.POST.get("max_tokens"),
+            anthropic_version=request.POST.get("anthropic_version"),
+            activo=True,
+            fecha_creacion=timezone.now(),
+            fecha_modificacion=timezone.now()
+        )
+
+        return JsonResponse({
+            "mensaje": "Modelo Claude creado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_modelo_deepseek(request):
+    """Crear modelo DeepSeek + configuración"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        nombre = request.POST.get('nombre')
+        version = request.POST.get('version')
+        descripcion = request.POST.get('descripcion')
+        color_ia = request.POST.get('color_ia')
+        proveedor_id = 2  # DeepSeek = 2
+        usuario_id = request.POST.get('usuario_id')
+
+        if not nombre:
+            return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+        if not usuario_id:
+            return JsonResponse({'error': 'El campo usuario_id es requerido'}, status=400)
+
+        if ModelosIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+        modelo = ModelosIa.objects.create(
+            nombre=nombre,
+            version=version,
+            proveedor_id=proveedor_id,
+            descripcion=descripcion,
+            activo=True,
+            recomendado=False,
+            fecha_creacion=timezone.now(),
+            color_ia=color_ia,
+            id_usuario=usuario
+        )
+
+        ConfiguracionDeepseek.objects.create(
+            id_modelo_ia=modelo,
+            id_prompt_id=1,
+            endpoint_url=request.POST.get("endpoint_url", ""),
+            api_key=request.POST.get("api_key", ""),
+            model_name=request.POST.get("model_name", ""),
+            max_tokens=request.POST.get("max_tokens"),
+            temperature=request.POST.get("temperature"),
+            activo=True,
+            fecha_creacion=timezone.now(),
+            fecha_modificacion=timezone.now()
+        )
+
+        return JsonResponse({
+            "mensaje": "Modelo DeepSeek creado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_modelo_gemini(request):
+    """Crear modelo Gemini + configuración"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        nombre = request.POST.get('nombre')
+        version = request.POST.get('version')
+        descripcion = request.POST.get('descripcion')
+        color_ia = request.POST.get('color_ia')
+        proveedor_id = 3  # Gemini = 3
+        usuario_id = request.POST.get('usuario_id')
+
+        if not nombre:
+            return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+        if not usuario_id:
+            return JsonResponse({'error': 'El campo usuario_id es requerido'}, status=400)
+
+        if ModelosIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+        modelo = ModelosIa.objects.create(
+            nombre=nombre,
+            version=version,
+            proveedor_id=proveedor_id,
+            descripcion=descripcion,
+            activo=True,
+            recomendado=False,
+            fecha_creacion=timezone.now(),
+            color_ia=color_ia,
+            id_usuario=usuario
+        )
+
+        ConfiguracionGemini.objects.create(
+            id_modelo_ia=modelo,
+            id_prompt_id=1,
+            endpoint_url=request.POST.get("endpoint_url", ""),
+            api_key=request.POST.get("api_key", ""),
+            model_name=request.POST.get("model_name", ""),
+            max_tokens=request.POST.get("max_tokens"),
+            temperature=request.POST.get("temperature"),
+            activo=True,
+            fecha_creacion=timezone.now(),
+            fecha_modificacion=timezone.now()
+        )
+
+        return JsonResponse({
+            "mensaje": "Modelo Gemini creado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_modelo_openai(request):
+    """Crear modelo OpenAI + configuración"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        nombre = request.POST.get('nombre')
+        version = request.POST.get('version')
+        descripcion = request.POST.get('descripcion')
+        color_ia = request.POST.get('color_ia')
+        proveedor_id = 4  # OpenAI = 4
+        usuario_id = request.POST.get('usuario_id')
+
+        if not nombre:
+            return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+        if not usuario_id:
+            return JsonResponse({'error': 'El campo usuario_id es requerido'}, status=400)
+
+        if ModelosIa.objects.filter(nombre=nombre).exists():
+            return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+        modelo = ModelosIa.objects.create(
+            nombre=nombre,
+            version=version,
+            proveedor_id=proveedor_id,
+            descripcion=descripcion,
+            activo=True,
+            recomendado=False,
+            fecha_creacion=timezone.now(),
+            color_ia=color_ia,
+            id_usuario=usuario
+        )
+
+        ConfiguracionOpenai.objects.create(
+            id_modelo_ia=modelo,
+            id_prompt_id=1,
+            endpoint_url=request.POST.get("endpoint_url", ""),
+            api_key=request.POST.get("api_key", ""),
+            model_name=request.POST.get("model_name", ""),
+            max_tokens=request.POST.get("max_tokens"),
+            temperature=request.POST.get("temperature"),
+            activo=True,
+            fecha_creacion=timezone.now(),
+            fecha_modificacion=timezone.now()
+        )
+
+        return JsonResponse({
+            "mensaje": "Modelo OpenAI creado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=201)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def editar_modelo_claude(request, id_modelo):
+    """Editar modelo IA + configuración Claude"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        # Buscar modelo y configuración
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo, proveedor_id=1)
+            config = ConfiguracionClaude.objects.get(id_modelo_ia=modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo Claude no encontrado"}, status=404)
+        except ConfiguracionClaude.DoesNotExist:
+            return JsonResponse({"error": "Configuración no encontrada"}, status=404)
+
+        # Obtener datos según el método
+        if request.method == "PUT":
+            data = QueryDict(request.body)
+        else:  # POST
+            data = request.POST
+
+        # Obtener nombre para validar duplicados
+        nombre = data.get("nombre")
+        
+        if nombre:
+            # Verificar duplicados (excluyendo el actual)
+            if ModelosIa.objects.filter(nombre=nombre).exclude(id=id_modelo).exists():
+                return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+            modelo.nombre = nombre
+
+        # Actualizar modelo
+        if data.get("version"):
+            modelo.version = data.get("version")
+        if data.get("descripcion"):
+            modelo.descripcion = data.get("descripcion")
+        if data.get("color_ia"):
+            modelo.color_ia = data.get("color_ia")
+        
+        modelo.save()
+
+        # Actualizar configuración
+        if data.get("endpoint_url"):
+            config.endpoint_url = data.get("endpoint_url")
+        if data.get("api_key"):
+            config.api_key = data.get("api_key")
+        if data.get("model_name"):
+            config.model_name = data.get("model_name")
+        if data.get("max_tokens"):
+            config.max_tokens = data.get("max_tokens")
+        if data.get("anthropic_version"):
+            config.anthropic_version = data.get("anthropic_version")
+        
+        config.fecha_modificacion = timezone.now()
+        config.save()
+
+        return JsonResponse({
+            "mensaje": "Modelo Claude actualizado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def editar_modelo_deepseek(request, id_modelo):
+    """Editar modelo IA + configuración DeepSeek"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo, proveedor_id=2)
+            config = ConfiguracionDeepseek.objects.get(id_modelo_ia=modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo DeepSeek no encontrado"}, status=404)
+        except ConfiguracionDeepseek.DoesNotExist:
+            return JsonResponse({"error": "Configuración no encontrada"}, status=404)
+
+        if request.method == "PUT":
+            data = QueryDict(request.body)
+        else:
+            data = request.POST
+
+        nombre = data.get("nombre")
+        
+        if nombre:
+            if ModelosIa.objects.filter(nombre=nombre).exclude(id=id_modelo).exists():
+                return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+            modelo.nombre = nombre
+
+        if data.get("version"):
+            modelo.version = data.get("version")
+        if data.get("descripcion"):
+            modelo.descripcion = data.get("descripcion")
+        if data.get("color_ia"):
+            modelo.color_ia = data.get("color_ia")
+        
+        modelo.save()
+
+        if data.get("endpoint_url"):
+            config.endpoint_url = data.get("endpoint_url")
+        if data.get("api_key"):
+            config.api_key = data.get("api_key")
+        if data.get("model_name"):
+            config.model_name = data.get("model_name")
+        if data.get("max_tokens"):
+            config.max_tokens = data.get("max_tokens")
+        if data.get("temperature"):
+            config.temperature = data.get("temperature")
+        
+        config.fecha_modificacion = timezone.now()
+        config.save()
+
+        return JsonResponse({
+            "mensaje": "Modelo DeepSeek actualizado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def editar_modelo_gemini(request, id_modelo):
+    """Editar modelo IA + configuración Gemini"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo, proveedor_id=3)
+            config = ConfiguracionGemini.objects.get(id_modelo_ia=modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo Gemini no encontrado"}, status=404)
+        except ConfiguracionGemini.DoesNotExist:
+            return JsonResponse({"error": "Configuración no encontrada"}, status=404)
+
+        if request.method == "PUT":
+            data = QueryDict(request.body)
+        else:
+            data = request.POST
+
+        nombre = data.get("nombre")
+        
+        if nombre:
+            if ModelosIa.objects.filter(nombre=nombre).exclude(id=id_modelo).exists():
+                return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+            modelo.nombre = nombre
+
+        if data.get("version"):
+            modelo.version = data.get("version")
+        if data.get("descripcion"):
+            modelo.descripcion = data.get("descripcion")
+        if data.get("color_ia"):
+            modelo.color_ia = data.get("color_ia")
+        
+        modelo.save()
+
+        if data.get("endpoint_url"):
+            config.endpoint_url = data.get("endpoint_url")
+        if data.get("api_key"):
+            config.api_key = data.get("api_key")
+        if data.get("model_name"):
+            config.model_name = data.get("model_name")
+        if data.get("max_tokens"):
+            config.max_tokens = data.get("max_tokens")
+        if data.get("temperature"):
+            config.temperature = data.get("temperature")
+        
+        config.fecha_modificacion = timezone.now()
+        config.save()
+
+        return JsonResponse({
+            "mensaje": "Modelo Gemini actualizado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def editar_modelo_openai(request, id_modelo):
+    """Editar modelo IA + configuración OpenAI"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo, proveedor_id=4)
+            config = ConfiguracionOpenai.objects.get(id_modelo_ia=modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo OpenAI no encontrado"}, status=404)
+        except ConfiguracionOpenai.DoesNotExist:
+            return JsonResponse({"error": "Configuración no encontrada"}, status=404)
+
+        if request.method == "PUT":
+            data = QueryDict(request.body)
+        else:
+            data = request.POST
+
+        nombre = data.get("nombre")
+        
+        if nombre:
+            if ModelosIa.objects.filter(nombre=nombre).exclude(id=id_modelo).exists():
+                return JsonResponse({'error': f'El modelo "{nombre}" ya existe'}, status=400)
+            modelo.nombre = nombre
+
+        if data.get("version"):
+            modelo.version = data.get("version")
+        if data.get("descripcion"):
+            modelo.descripcion = data.get("descripcion")
+        if data.get("color_ia"):
+            modelo.color_ia = data.get("color_ia")
+        
+        modelo.save()
+
+        if data.get("endpoint_url"):
+            config.endpoint_url = data.get("endpoint_url")
+        if data.get("api_key"):
+            config.api_key = data.get("api_key")
+        if data.get("model_name"):
+            config.model_name = data.get("model_name")
+        if data.get("max_tokens"):
+            config.max_tokens = data.get("max_tokens")
+        if data.get("temperature"):
+            config.temperature = data.get("temperature")
+        
+        config.fecha_modificacion = timezone.now()
+        config.save()
+
+        return JsonResponse({
+            "mensaje": "Modelo OpenAI actualizado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@require_http_methods(["GET"])
+def listar_modelos_usuario(request):
+    """Listar modelos IA creados solo por admins"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        # Obtener IDs de todos los usuarios admin
+        usuarios_admin_ids = list(Usuarios.objects.filter(
+            rol__nombre__iexact='admin'
+        ).values_list('id', flat=True))
+
+        # Obtener solo modelos creados por admins
+        modelos = ModelosIa.objects.filter(
+            id_usuario_id__in=usuarios_admin_ids
+        ).order_by('proveedor_id', '-fecha_creacion')
+
+        data = []
+        for m in modelos:
+            data.append({
+                "id": m.id,
+                "nombre": m.nombre,
+                "version": m.version,
+                "descripcion": m.descripcion,
+                "proveedor_id": m.proveedor_id,
+                "color_ia": m.color_ia,
+                "recomendado": m.recomendado,
+                "activo": m.activo,
+                "fecha_creacion": m.fecha_creacion,
+            })
+
+        return JsonResponse({"modelos": data}, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def cambiar_estado_modelo(request, id_modelo):
+    """Activar o desactivar un modelo IA"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo no encontrado"}, status=404)
+
+        # Cambiar estado (toggle)
+        modelo.activo = not modelo.activo
+        modelo.save()
+
+        estado_texto = "activado" if modelo.activo else "desactivado"
+
+        return JsonResponse({
+            "mensaje": f"Modelo {estado_texto} exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre,
+            "activo": modelo.activo
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def marcar_recomendado(request, id_modelo):
+    """Marcar un modelo como recomendado (solo uno por usuario)"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        try:
+            modelo = ModelosIa.objects.get(id=id_modelo)
+        except ModelosIa.DoesNotExist:
+            return JsonResponse({"error": "Modelo no encontrado"}, status=404)
+
+        # Quitar recomendado a todos los modelos del usuario
+        ModelosIa.objects.filter(id_usuario=modelo.id_usuario).update(recomendado=False)
+
+        # Activar recomendado en este
+        modelo.recomendado = True
+        modelo.save()
+
+        return JsonResponse({
+            "mensaje": "Modelo marcado como recomendado exitosamente",
+            "id": modelo.id,
+            "nombre": modelo.nombre,
+            "recomendado": modelo.recomendado
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
