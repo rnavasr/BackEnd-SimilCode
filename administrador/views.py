@@ -205,3 +205,31 @@ def cambiar_estado_lenguaje(request, lenguaje_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+@require_http_methods(["GET"])
+def listar_proveedores(request):
+    """Listar todos los proveedores de IA"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        proveedores = ProveedoresIa.objects.all().order_by('nombre')
+        
+        proveedores_data = [{
+            'id': p.id,
+            'nombre': p.nombre,
+            'descripcion': p.descripcion,
+            'logo_url': p.logo_url,
+            'sitio_web': p.sitio_web,
+            'activo': p.activo
+        } for p in proveedores]
+        
+        return JsonResponse({'proveedores': proveedores_data}, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
