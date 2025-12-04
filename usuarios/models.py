@@ -59,6 +59,8 @@ class Lenguajes(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
     extension = models.CharField(max_length=10, blank=True, null=True)
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING, db_column='id_usuario', blank=True, null=True)
+    estado = models.BooleanField(default=True)
+    
 
     class Meta:
         managed = False
