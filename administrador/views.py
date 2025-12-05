@@ -881,7 +881,7 @@ def marcar_recomendado(request, id_modelo):
     
 @require_http_methods(["GET"])
 def listar_comparaciones(request):
-    """Listar comparaciones individuales del usuario autenticado"""
+    """Listar TODAS las comparaciones individuales de todos los usuarios"""
     payload = validar_token(request)
 
     if not payload:
@@ -890,16 +890,24 @@ def listar_comparaciones(request):
         return JsonResponse(payload, status=401)
 
     try:
-        usuario_id = payload['usuario_id']
+        # Verificar que el usuario es admin (opcional pero recomendado)
+        try:
+            usuario = Usuarios.objects.select_related('rol').get(id=payload['usuario_id'])
+            if usuario.rol.nombre.lower() != 'admin':
+                return JsonResponse({
+                    'error': 'No tienes permisos para ver todas las comparaciones'
+                }, status=403)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         
-        # Obtener comparaciones del usuario con datos relacionados
-        comparaciones = ComparacionesIndividuales.objects.filter(
-            usuario_id=usuario_id
-        ).select_related(
+        # Obtener TODAS las comparaciones de TODOS los usuarios
+        comparaciones = ComparacionesIndividuales.objects.select_related(
             'usuario__datos_personales',
             'lenguaje',
             'id_modelo_ia'
         ).order_by('-fecha_creacion')
+
+        print(f"🔍 DEBUG: Total de comparaciones en el sistema: {comparaciones.count()}")
 
         data = []
         for comp in comparaciones:
@@ -910,22 +918,25 @@ def listar_comparaciones(request):
                 "id": comp.id,
                 "nombre_comparacion": comp.nombre_comparacion,
                 "nombre_usuario": nombre_completo,
+                "usuario_id": comp.usuario.id,  # Agregar el ID del usuario
                 "estado": comp.estado,
                 "lenguaje": comp.lenguaje.nombre if comp.lenguaje else None,
                 "modelo_ia": comp.id_modelo_ia.nombre if comp.id_modelo_ia else None,
                 "fecha_creacion": comp.fecha_creacion,
             })
 
+        print(f"🔍 DEBUG: Datos a enviar: {len(data)} comparaciones")
+
         return JsonResponse({"comparaciones": data}, status=200)
 
     except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
-
 
 @csrf_exempt
 @require_http_methods(["PUT", "POST"])
 def cambiar_estado_comparacion(request, id_comparacion):
-    """Cambiar estado de comparación entre 'Reciente' y 'Oculto'"""
+    """Cambiar estado de comparación entre 'Reciente' y 'Oculto' (ADMIN puede cambiar cualquier comparación)"""
     payload = validar_token(request)
 
     if not payload:
@@ -934,18 +945,25 @@ def cambiar_estado_comparacion(request, id_comparacion):
         return JsonResponse(payload, status=401)
 
     try:
-        usuario_id = payload['usuario_id']
-        
-        # Verificar que la comparación existe y pertenece al usuario
+        # Verificar que el usuario es admin
         try:
-            comparacion = ComparacionesIndividuales.objects.get(
-                id=id_comparacion,
-                usuario_id=usuario_id
-            )
+            usuario = Usuarios.objects.select_related('rol').get(id=payload['usuario_id'])
+            if usuario.rol.nombre.lower() != 'admin':
+                return JsonResponse({
+                    'error': 'No tienes permisos para modificar comparaciones'
+                }, status=403)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        
+        # Admin puede cambiar el estado de cualquier comparación
+        try:
+            comparacion = ComparacionesIndividuales.objects.get(id=id_comparacion)
         except ComparacionesIndividuales.DoesNotExist:
             return JsonResponse({
-                "error": "Comparación no encontrada o no tienes permiso para modificarla"
+                "error": "Comparación no encontrada"
             }, status=404)
+
+        print(f"🔍 DEBUG: Comparación {comparacion.id} - Estado actual: {comparacion.estado}")
 
         # Cambiar estado entre 'Reciente' y 'Oculto'
         if comparacion.estado == 'Reciente':
@@ -955,6 +973,8 @@ def cambiar_estado_comparacion(request, id_comparacion):
         
         comparacion.save()
 
+        print(f"✅ DEBUG: Nuevo estado: {comparacion.estado}")
+
         return JsonResponse({
             "mensaje": f"Estado cambiado a '{comparacion.estado}' exitosamente",
             "id": comparacion.id,
@@ -963,4 +983,5 @@ def cambiar_estado_comparacion(request, id_comparacion):
         }, status=200)
 
     except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
