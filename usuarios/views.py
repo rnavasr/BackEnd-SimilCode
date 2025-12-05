@@ -160,8 +160,12 @@ def perfil_usuario(request):
         return JsonResponse({
             'usuario_id': usuario.id,
             'usuario': usuario.usuario,
-            'nombre': usuario.datos_personales.nombre,
-            'apellido': usuario.datos_personales.apellido,
+            'nombres': usuario.datos_personales.nombres,  # Cambiado de .nombre a .nombres
+            'apellidos': usuario.datos_personales.apellidos,  # Cambiado de .apellido a .apellidos
+            'email': usuario.datos_personales.email,
+            'telefono': usuario.datos_personales.telefono,
+            'institucion': usuario.datos_personales.institucion,
+            'facultad_area': usuario.datos_personales.facultad_area,
             'rol': usuario.rol.nombre
         }, status=200)
         

@@ -17,5 +17,7 @@ path('editar_modelo_gemini/<int:id_modelo>/', views.editar_modelo_gemini, name='
 path('editar_modelo_openai/<int:id_modelo>/', views.editar_modelo_openai, name='editar_modelo_openai'),
 path('listar_modelos_usuario/', views.listar_modelos_usuario, name='listar_modelos_usuario'),
 path('cambiar_estado_modelo/<int:id_modelo>/', views.cambiar_estado_modelo, name='cambiar_estado_modelo'),
-path('marcar_modelo_recomendado/<int:id_modelo>/', views.marcar_recomendado, name='marcar_modelo_recomendado')
+path('marcar_modelo_recomendado/<int:id_modelo>/', views.marcar_recomendado, name='marcar_modelo_recomendado'),
+path('listar_comparaciones/', views.listar_comparaciones, name='listar_comparaciones'),
+path('cambiar_estado_comparacion/<int:id_comparacion>/', views.cambiar_estado_comparacion, name='cambiar_estado_comparacion')
 ]

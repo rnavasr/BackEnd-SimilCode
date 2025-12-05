@@ -1,14 +1,5 @@
 from django.db import models
 
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
-
-
 class CodigosFuente(models.Model):
     comparacion_grupal = models.ForeignKey('ComparacionesGrupales', models.DO_NOTHING)
     codigo = models.TextField()
@@ -18,7 +9,7 @@ class CodigosFuente(models.Model):
     class Meta:
         managed = False
         db_table = 'codigos_fuente'
-        app_label = 'app'
+        
 
 class ComparacionesGrupales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
@@ -31,7 +22,7 @@ class ComparacionesGrupales(models.Model):
     class Meta:
         managed = False
         db_table = 'comparaciones_grupales'
-        app_label = 'app'
+        
 
 class ComparacionesIndividuales(models.Model):
     usuario = models.ForeignKey('Usuarios', models.DO_NOTHING)
@@ -46,19 +37,23 @@ class ComparacionesIndividuales(models.Model):
     class Meta:
         managed = False
         db_table = 'comparaciones_individuales'
-        app_label = 'app'
+        
 
 class DatosPersonales(models.Model):
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
+    nombres = models.CharField(max_length=100)
+    apellidos = models.CharField(max_length=100)
     email = models.CharField(unique=True, max_length=150, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
-    institucion = models.CharField(max_length=200, blank=True, null=True)
+    institucion = models.CharField(max_length=200)
+    ci = models.CharField(max_length=10, blank=True, null=True)
+    facultad_area = models.CharField(max_length=150, blank=True, null=True)
+    fecha_registro = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'datos_personales'
-        app_label = 'app'        
+        db_table = 'datos_personales'  
+           
 
 class Lenguajes(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
@@ -69,7 +64,7 @@ class Lenguajes(models.Model):
     class Meta:
         managed = False
         db_table = 'lenguajes'
-        app_label = 'app'
+        
 
 class ModelosIa(models.Model):
     nombre = models.CharField(unique=True, max_length=100)
@@ -86,7 +81,7 @@ class ModelosIa(models.Model):
     class Meta:
         managed = False
         db_table = 'modelos_ia'
-        app_label = 'app'
+        
 
 class PromptComparacion(models.Model):
     id_prompt = models.AutoField(primary_key=True)
@@ -100,7 +95,7 @@ class PromptComparacion(models.Model):
     class Meta:
         managed = False
         db_table = 'prompt_comparacion'
-        app_label = 'app'
+        
 
 class ConfiguracionClaude(models.Model):
     id_config_claude = models.AutoField(primary_key=True)
@@ -118,7 +113,7 @@ class ConfiguracionClaude(models.Model):
     class Meta:
         managed = False
         db_table = 'configuracion_claude'
-        app_label = 'app'
+        
 
 class ConfiguracionDeepseek(models.Model):
     id_config_deepseek = models.AutoField(primary_key=True)
@@ -136,7 +131,7 @@ class ConfiguracionDeepseek(models.Model):
     class Meta:
         managed = False
         db_table = 'configuracion_deepseek'
-        app_label = 'app'
+        
 
 class ConfiguracionGemini(models.Model):
     id_config_gemini = models.AutoField(primary_key=True)
@@ -154,7 +149,7 @@ class ConfiguracionGemini(models.Model):
     class Meta:
         managed = False
         db_table = 'configuracion_gemini'
-        app_label = 'app'
+        
 
 class ConfiguracionOpenai(models.Model):
     id_config_openai = models.AutoField(primary_key=True)
@@ -172,7 +167,7 @@ class ConfiguracionOpenai(models.Model):
     class Meta:
         managed = False
         db_table = 'configuracion_openai'
-        app_label = 'app'
+        
 
 class ProveedoresIa(models.Model):
     nombre = models.CharField(unique=True, max_length=100)
@@ -185,8 +180,7 @@ class ProveedoresIa(models.Model):
     class Meta:
         managed = False
         db_table = 'proveedores_ia'
-        app_label = 'app'
-
+        
 
 class ResultadosEficienciaGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
@@ -199,7 +193,7 @@ class ResultadosEficienciaGrupal(models.Model):
     class Meta:
         managed = False
         db_table = 'resultados_eficiencia_grupal'
-        app_label = 'app'
+        
 
 class ResultadosEficienciaIndividual(models.Model):
     comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING)
@@ -212,7 +206,7 @@ class ResultadosEficienciaIndividual(models.Model):
     class Meta:
         managed = False
         db_table = 'resultados_eficiencia_individual'
-        app_label = 'app'
+        
 
 class ResultadosSimilitudGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
@@ -224,7 +218,7 @@ class ResultadosSimilitudGrupal(models.Model):
     class Meta:
         managed = False
         db_table = 'resultados_similitud_grupal'
-        app_label = 'app'
+        
 
 class ResultadosSimilitudIndividual(models.Model):
     id_resultado_similitud_individual = models.AutoField(primary_key=True)
@@ -235,7 +229,7 @@ class ResultadosSimilitudIndividual(models.Model):
     class Meta:
         managed = False
         db_table = 'resultados_similitud_individual'
-        app_label = 'app'
+        
 
 class Roles(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
@@ -244,8 +238,7 @@ class Roles(models.Model):
     class Meta:
         managed = False
         db_table = 'roles'
-        app_label = 'app'
-
+        
 
 class Usuarios(models.Model):
     usuario = models.CharField(unique=True, max_length=50)
@@ -258,4 +251,4 @@ class Usuarios(models.Model):
     class Meta:
         managed = False
         db_table = 'usuarios'
-        app_label = 'app'        
+                

@@ -1,12 +1,4 @@
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
-
 
 class CodigosFuente(models.Model):
     comparacion_grupal = models.ForeignKey('ComparacionesGrupales', models.DO_NOTHING)
@@ -48,16 +40,20 @@ class ComparacionesIndividuales(models.Model):
         app_label = 'app'
 
 class DatosPersonales(models.Model):
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
+    nombres = models.CharField(max_length=100)
+    apellidos = models.CharField(max_length=100)
     email = models.CharField(unique=True, max_length=150, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
-    institucion = models.CharField(max_length=200, blank=True, null=True)
+    institucion = models.CharField(max_length=200)
+    ci = models.CharField(max_length=10, blank=True, null=True)
+    facultad_area = models.CharField(max_length=150, blank=True, null=True)
+    fecha_registro = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'datos_personales'
-        app_label = 'app'        
+        db_table = 'datos_personales'  
+        app_label = 'app'   
 
 class Lenguajes(models.Model):
     nombre = models.CharField(unique=True, max_length=50)
@@ -186,7 +182,6 @@ class ProveedoresIa(models.Model):
         db_table = 'proveedores_ia'
         app_label = 'app'
 
-
 class ResultadosEficienciaGrupal(models.Model):
     comparacion_grupal = models.ForeignKey(ComparacionesGrupales, models.DO_NOTHING)
     codigo_fuente = models.ForeignKey(CodigosFuente, models.DO_NOTHING)
@@ -244,7 +239,6 @@ class Roles(models.Model):
         managed = False
         db_table = 'roles'
         app_label = 'app'
-
 
 class Usuarios(models.Model):
     usuario = models.CharField(unique=True, max_length=50)

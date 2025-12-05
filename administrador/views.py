@@ -878,3 +878,89 @@ def marcar_recomendado(request, id_modelo):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+    
+@require_http_methods(["GET"])
+def listar_comparaciones(request):
+    """Listar comparaciones individuales del usuario autenticado"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        usuario_id = payload['usuario_id']
+        
+        # Obtener comparaciones del usuario con datos relacionados
+        comparaciones = ComparacionesIndividuales.objects.filter(
+            usuario_id=usuario_id
+        ).select_related(
+            'usuario__datos_personales',
+            'lenguaje',
+            'id_modelo_ia'
+        ).order_by('-fecha_creacion')
+
+        data = []
+        for comp in comparaciones:
+            # Concatenar nombres y apellidos
+            nombre_completo = f"{comp.usuario.datos_personales.nombres} {comp.usuario.datos_personales.apellidos}"
+            
+            data.append({
+                "id": comp.id,
+                "nombre_comparacion": comp.nombre_comparacion,
+                "nombre_usuario": nombre_completo,
+                "estado": comp.estado,
+                "lenguaje": comp.lenguaje.nombre if comp.lenguaje else None,
+                "modelo_ia": comp.id_modelo_ia.nombre if comp.id_modelo_ia else None,
+                "fecha_creacion": comp.fecha_creacion,
+            })
+
+        return JsonResponse({"comparaciones": data}, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def cambiar_estado_comparacion(request, id_comparacion):
+    """Cambiar estado de comparación entre 'Reciente' y 'Oculto'"""
+    payload = validar_token(request)
+
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+
+    try:
+        usuario_id = payload['usuario_id']
+        
+        # Verificar que la comparación existe y pertenece al usuario
+        try:
+            comparacion = ComparacionesIndividuales.objects.get(
+                id=id_comparacion,
+                usuario_id=usuario_id
+            )
+        except ComparacionesIndividuales.DoesNotExist:
+            return JsonResponse({
+                "error": "Comparación no encontrada o no tienes permiso para modificarla"
+            }, status=404)
+
+        # Cambiar estado entre 'Reciente' y 'Oculto'
+        if comparacion.estado == 'Reciente':
+            comparacion.estado = 'Oculto'
+        else:
+            comparacion.estado = 'Reciente'
+        
+        comparacion.save()
+
+        return JsonResponse({
+            "mensaje": f"Estado cambiado a '{comparacion.estado}' exitosamente",
+            "id": comparacion.id,
+            "nombre_comparacion": comparacion.nombre_comparacion,
+            "estado": comparacion.estado
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

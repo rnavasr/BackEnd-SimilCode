@@ -11,12 +11,16 @@ CREATE TABLE roles (
 
 -- Tabla de datos personales para docentes
 CREATE TABLE datos_personales (
-    id_datos_personales SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100) NOT NULL,
+    id SERIAL PRIMARY KEY,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    ci VARCHAR(10) NOT NULL UNIQUE,
     email VARCHAR(150) NOT NULL UNIQUE,
     telefono VARCHAR(20),
-    institucion VARCHAR(200)
+    institucion VARCHAR(200) NOT NULL,
+    facultad_area VARCHAR(150),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado VARCHAR(20) DEFAULT 'activo' CHECK (estado IN ('activo', 'inactivo'))
 );
 
 -- Tabla de usuarios
