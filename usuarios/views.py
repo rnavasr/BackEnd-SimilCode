@@ -15,6 +15,8 @@ import requests
 import json
 import time
 import re
+import json
+from django.core.files.uploadhandler import MemoryFileUploadHandler
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -1247,6 +1249,248 @@ def obtener_resultados_similitud_individual(request, comparacion_id):
         return JsonResponse({
             'error': f'No se encontró la comparación con ID {comparacion_id}'
         }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_lenguaje_docente(request):
+    """Crear un nuevo lenguaje - Solo para el docente autenticado"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener el usuario del token
+        usuario_id = payload.get('usuario_id')
+        
+        if not usuario_id:
+            return JsonResponse({
+                'error': 'Usuario no identificado en el token'
+            }, status=401)
+        
+        # Obtener datos del request
+        nombre = request.POST.get('nombre')
+        extension = request.POST.get('extension')
+        
+        # Validaciones
+        if not nombre:
+            return JsonResponse({
+                'error': 'El campo nombre es requerido'
+            }, status=400)
+        
+        # Obtener IDs de todos los usuarios admin
+        usuarios_admin_ids = list(Usuarios.objects.filter(
+            rol__nombre__iexact='admin'
+        ).values_list('id', flat=True))
+        
+        # Verificar si ya existe un lenguaje con ese nombre creado por un ADMIN
+        # (Los lenguajes de otros docentes NO importan)
+        if Lenguajes.objects.filter(nombre=nombre, usuario_id__in=usuarios_admin_ids).exists():
+            return JsonResponse({
+                'error': f'El lenguaje "{nombre}" ya existe (creado por administrador)'
+            }, status=400)
+        
+        # Verificar si YO (el docente actual) ya tengo un lenguaje con ese nombre
+        if Lenguajes.objects.filter(nombre=nombre, usuario_id=usuario_id).exists():
+            return JsonResponse({
+                'error': f'Ya tienes un lenguaje llamado "{nombre}"'
+            }, status=400)
+        
+        # Obtener el usuario
+        try:
+            usuario = Usuarios.objects.get(id=usuario_id)
+        except Usuarios.DoesNotExist:
+            return JsonResponse({
+                'error': 'Usuario no encontrado'
+            }, status=404)
+        
+        # Crear el lenguaje
+        lenguaje = Lenguajes.objects.create(
+            nombre=nombre,
+            extension=extension,
+            usuario=usuario,
+            estado=True  # Por defecto activo
+        )
+        
+        return JsonResponse({
+            'mensaje': 'Lenguaje creado exitosamente',
+            'lenguaje': {
+                'id': lenguaje.id,
+                'nombre': lenguaje.nombre,
+                'extension': lenguaje.extension,
+                'estado': lenguaje.estado
+            }
+        }, status=201)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def listar_lenguajes_docente(request):
+    """Listar SOLO los lenguajes creados por el docente autenticado"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener el usuario del token
+        usuario_id = payload.get('usuario_id')
+        
+        if not usuario_id:
+            return JsonResponse({
+                'error': 'Usuario no identificado en el token'
+            }, status=401)
+        
+        # Obtener SOLO los lenguajes creados por este usuario
+        lenguajes = Lenguajes.objects.filter(
+            usuario_id=usuario_id
+        ).values(
+            'id', 
+            'nombre', 
+            'extension',
+            'estado'
+        ).order_by('nombre')
+        
+        return JsonResponse({
+            'lenguajes': list(lenguajes),
+            'total': len(lenguajes)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
+from django.http.multipartparser import MultiPartParser
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def editar_lenguaje_docente(request, lenguaje_id):
+    """Editar un lenguaje - Solo si pertenece al docente autenticado"""
+    
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        usuario_id = payload.get('usuario_id')
+        
+        if not usuario_id:
+            return JsonResponse({
+                'error': 'Usuario no identificado en el token'
+            }, status=401)
+        
+        try:
+            lenguaje = Lenguajes.objects.get(id=lenguaje_id, usuario_id=usuario_id)
+        except Lenguajes.DoesNotExist:
+            return JsonResponse({
+                'error': 'Lenguaje no encontrado o no tienes permisos para editarlo'
+            }, status=404)
+        
+        # SOLUCIÓN: Parsear multipart/form-data manualmente
+        content_type = request.META.get('CONTENT_TYPE', '')
+        
+        if 'multipart/form-data' in content_type:
+            # Usar MultiPartParser para parsear correctamente
+            parser = MultiPartParser(request.META, request, request.upload_handlers)
+            post_data, files = parser.parse()
+            nombre = post_data.get('nombre')
+            extension = post_data.get('extension')
+        else:
+            # Fallback para otros content-types
+            nombre = request.POST.get('nombre')
+            extension = request.POST.get('extension')
+        
+        # Validaciones
+        if not nombre:
+            return JsonResponse({
+                'error': 'El campo nombre es requerido'
+            }, status=400)
+        
+        # Verificar duplicados
+        if Lenguajes.objects.filter(nombre=nombre).exclude(id=lenguaje_id).exists():
+            return JsonResponse({
+                'error': f'El lenguaje "{nombre}" ya existe'
+            }, status=400)
+        
+        # Actualizar
+        lenguaje.nombre = nombre
+        if extension is not None:
+            lenguaje.extension = extension
+        lenguaje.save()
+        
+        return JsonResponse({
+            'mensaje': 'Lenguaje actualizado exitosamente',
+            'lenguaje': {
+                'id': lenguaje.id,
+                'nombre': lenguaje.nombre,
+                'extension': lenguaje.extension,
+                'estado': lenguaje.estado
+            }
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+def cambiar_estado_lenguaje_docente(request, lenguaje_id):
+    """Cambiar el estado de un lenguaje - Solo si pertenece al docente"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener el usuario del token
+        usuario_id = payload.get('usuario_id')
+        
+        if not usuario_id:
+            return JsonResponse({
+                'error': 'Usuario no identificado en el token'
+            }, status=401)
+        
+        # Buscar el lenguaje Y verificar que sea del usuario
+        try:
+            lenguaje = Lenguajes.objects.get(id=lenguaje_id, usuario_id=usuario_id)
+        except Lenguajes.DoesNotExist:
+            return JsonResponse({
+                'error': 'Lenguaje no encontrado o no tienes permisos para modificarlo'
+            }, status=404)
+        
+        # Cambiar el estado (toggle)
+        lenguaje.estado = not lenguaje.estado
+        lenguaje.save()
+        
+        estado_texto = "activado" if lenguaje.estado else "desactivado"
+        
+        return JsonResponse({
+            'mensaje': f'Lenguaje {estado_texto} exitosamente',
+            'lenguaje': {
+                'id': lenguaje.id,
+                'nombre': lenguaje.nombre,
+                'estado': lenguaje.estado
+            }
+        }, status=200)
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
