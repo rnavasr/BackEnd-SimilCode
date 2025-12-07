@@ -27,5 +27,6 @@ urlpatterns = [
     path('crear_lenguaje_docente/', views.crear_lenguaje_docente, name='crear_lenguaje_docente'),
     path('listar_lenguajes_docente/', views.listar_lenguajes_docente, name='listar_lenguajes_docente'),
     path('editar_lenguaje_docente/<int:lenguaje_id>/', views.editar_lenguaje_docente, name='editar_lenguaje_docente'),
-    path('cambiar_estado_lenguaje_docente/<int:lenguaje_id>/', views.cambiar_estado_lenguaje_docente, name='cambiar_estado_lenguaje_docente')
+    path('cambiar_estado_lenguaje_docente/<int:lenguaje_id>/', views.cambiar_estado_lenguaje_docente, name='cambiar_estado_lenguaje_docente'),
+    path('analisis_big_o_individual/<int:comparacion_id>/', views.analizar_big_o_individual, name='analisis_big_o_individual'),
 ]

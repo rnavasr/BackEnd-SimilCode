@@ -17,6 +17,7 @@ import time
 import re
 import json
 from django.core.files.uploadhandler import MemoryFileUploadHandler
+from typing import Dict, List
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -1494,3 +1495,468 @@ def cambiar_estado_lenguaje_docente(request, lenguaje_id):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+# Mapeo de lenguajes soportados
+LENGUAJES_SOPORTADOS = {
+    'python': {'nombre': 'Python', 'extensiones': ['.py']},
+    'javascript': {'nombre': 'JavaScript', 'extensiones': ['.js']},
+    'java': {'nombre': 'Java', 'extensiones': ['.java']},
+    'c': {'nombre': 'C', 'extensiones': ['.c', '.h']},
+    'cpp': {'nombre': 'C++', 'extensiones': ['.cpp', '.cc', '.cxx', '.hpp']},
+    'c++': {'nombre': 'C++', 'extensiones': ['.cpp', '.cc', '.cxx', '.hpp']},
+    'csharp': {'nombre': 'C#', 'extensiones': ['.cs']},
+    'c#': {'nombre': 'C#', 'extensiones': ['.cs']},
+    'php': {'nombre': 'PHP', 'extensiones': ['.php']},
+    'ruby': {'nombre': 'Ruby', 'extensiones': ['.rb']},
+    'go': {'nombre': 'Go', 'extensiones': ['.go']},
+    'rust': {'nombre': 'Rust', 'extensiones': ['.rs']},
+    'swift': {'nombre': 'Swift', 'extensiones': ['.swift']},
+    'kotlin': {'nombre': 'Kotlin', 'extensiones': ['.kt']},
+    'typescript': {'nombre': 'TypeScript', 'extensiones': ['.ts']},
+}
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def analizar_big_o_individual(request, comparacion_id):
+    """Analizar Big O de una comparación - Solo análisis automático"""
+    payload = validar_token(request)
+    
+    if not payload or 'error' in payload:
+        return JsonResponse({'error': 'Token inválido'}, status=401)
+    
+    try:
+        # Obtener comparación
+        comparacion = ComparacionesIndividuales.objects.get(pk=comparacion_id)
+        
+        lenguaje = comparacion.lenguaje.nombre.lower()
+        
+        # Validar si el lenguaje es soportado
+        if lenguaje not in LENGUAJES_SOPORTADOS:
+            # Intentar detectar por extensión
+            extension = comparacion.lenguaje.extension
+            lenguaje_detectado = detectar_lenguaje_por_extension(extension)
+            
+            if not lenguaje_detectado:
+                return JsonResponse({
+                    'advertencia': f'Lenguaje "{comparacion.lenguaje.nombre}" no completamente soportado. Usando análisis genérico.',
+                    'lenguaje_original': comparacion.lenguaje.nombre,
+                    'usando_analisis': 'generico'
+                }, status=200)
+            
+            lenguaje = lenguaje_detectado
+        
+        # Analizar código 1
+        analisis_1 = analizar_codigo_big_o(
+            comparacion.codigo_1,
+            lenguaje
+        )
+        
+        # Analizar código 2
+        analisis_2 = analizar_codigo_big_o(
+            comparacion.codigo_2,
+            lenguaje
+        )
+        
+        # Determinar ganador
+        ganador = determinar_ganador(
+            analisis_1['complejidad_temporal'],
+            analisis_2['complejidad_temporal']
+        )
+        
+        return JsonResponse({
+            'mensaje': 'Análisis Big O completado',
+            'codigo_1': analisis_1,
+            'codigo_2': analisis_2,
+            'ganador': ganador,
+            'lenguaje': comparacion.lenguaje.nombre,
+            'lenguaje_analizado': LENGUAJES_SOPORTADOS[lenguaje]['nombre']
+        }, status=200)
+        
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({'error': 'Comparación no encontrada'}, status=404)
+    except Exception as e:
+        import traceback
+        return JsonResponse({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+def detectar_lenguaje_por_extension(extension: str) -> str:
+    """Detecta el lenguaje por su extensión"""
+    if not extension:
+        return None
+    
+    extension = extension.lower()
+    if not extension.startswith('.'):
+        extension = f'.{extension}'
+    
+    for lenguaje, info in LENGUAJES_SOPORTADOS.items():
+        if extension in info['extensiones']:
+            return lenguaje
+    
+    return None
+
+
+def analizar_codigo_big_o(codigo: str, lenguaje: str) -> Dict:
+    """Analiza un código y retorna su complejidad Big O"""
+    lineas = codigo.split('\n')
+    
+    # Analizar cada función por separado
+    funciones = extraer_funciones(codigo, lineas, lenguaje)
+    
+    if funciones:
+        # Si hay múltiples funciones, tomar la de mayor complejidad
+        complejidad_temporal = max(
+            [calcular_complejidad_temporal(func['codigo'], func['lineas'], lenguaje) 
+             for func in funciones],
+            key=lambda x: orden_complejidad(x)
+        )
+    else:
+        # Analizar el código completo
+        complejidad_temporal = calcular_complejidad_temporal(codigo, lineas, lenguaje)
+    
+    complejidad_espacial = calcular_complejidad_espacial(codigo, lineas, lenguaje)
+    patrones = detectar_patrones(codigo, lineas, lenguaje)
+    nivel_anidamiento = contar_loops_anidados(lineas, lenguaje)
+    estructuras = detectar_estructuras_datos(codigo, lenguaje)
+    
+    return {
+        'complejidad_temporal': complejidad_temporal,
+        'complejidad_espacial': complejidad_espacial,
+        'patrones_detectados': patrones,
+        'nivel_anidamiento': nivel_anidamiento,
+        'estructuras_datos': estructuras,
+        'confianza_analisis': calcular_confianza(codigo, lenguaje)
+    }
+
+
+def extraer_funciones(codigo: str, lineas: List[str], lenguaje: str) -> List[Dict]:
+    """Extrae funciones individuales del código para analizarlas por separado"""
+    funciones = []
+    
+    if lenguaje == 'python':
+        funcion_actual = None
+        indentacion_funcion = None
+        
+        for i, linea in enumerate(lineas):
+            # Detectar inicio de función
+            if re.match(r'^\s*def\s+(\w+)\s*\(', linea):
+                if funcion_actual:
+                    funciones.append(funcion_actual)
+                
+                espacios = len(linea) - len(linea.lstrip())
+                funcion_actual = {
+                    'nombre': re.search(r'def\s+(\w+)', linea).group(1),
+                    'lineas': [linea],
+                    'codigo': linea + '\n',
+                    'indentacion': espacios
+                }
+                indentacion_funcion = espacios
+            
+            # Agregar líneas a la función actual
+            elif funcion_actual:
+                espacios = len(linea) - len(linea.lstrip())
+                
+                # Si la indentación vuelve al nivel de la función o menos, terminar
+                if linea.strip() and espacios <= indentacion_funcion and not linea.strip().startswith('#'):
+                    funciones.append(funcion_actual)
+                    funcion_actual = None
+                else:
+                    funcion_actual['lineas'].append(linea)
+                    funcion_actual['codigo'] += linea + '\n'
+        
+        # Agregar última función
+        if funcion_actual:
+            funciones.append(funcion_actual)
+    
+    return funciones
+
+
+def orden_complejidad(complejidad: str) -> int:
+    """Retorna el orden numérico de una complejidad"""
+    orden = {
+        'O(1)': 1,
+        'O(log n)': 2,
+        'O(n)': 3,
+        'O(n log n)': 4,
+        'O(n^2)': 5,
+        'O(n^3)': 6,
+        'O(2^n)': 7,
+        'O(n!)': 8
+    }
+    return orden.get(complejidad, 999)
+
+
+def calcular_confianza(codigo: str, lenguaje: str) -> str:
+    """Calcula qué tan confiable es el análisis"""
+    if lenguaje in ['python', 'javascript', 'java', 'c', 'cpp', 'c++']:
+        return 'Alta'
+    elif lenguaje in LENGUAJES_SOPORTADOS:
+        return 'Media'
+    else:
+        return 'Baja - Análisis genérico'
+
+
+def contar_loops_anidados(lineas: List[str], lenguaje: str) -> int:
+    """Cuenta el nivel máximo de loops anidados"""
+    max_nivel = 0
+    
+    patrones_loop = {
+        'python': r'^\s*(for\s+.*:|while\s+.*:)',
+        'javascript': r'^\s*(for\s*\(|while\s*\()',
+        'typescript': r'^\s*(for\s*\(|while\s*\()',
+        'java': r'^\s*(for\s*\(|while\s*\()',
+        'c': r'^\s*(for\s*\(|while\s*\()',
+        'cpp': r'^\s*(for\s*\(|while\s*\()',
+        'c++': r'^\s*(for\s*\(|while\s*\()',
+    }
+    
+    patron = patrones_loop.get(lenguaje, patrones_loop.get('python'))
+    
+    if lenguaje == 'python':
+        stack_indentacion = []
+        
+        for linea in lineas:
+            linea_limpia = linea.rstrip()
+            if not linea_limpia or linea_limpia.strip().startswith('#'):
+                continue
+            
+            espacios = len(linea) - len(linea.lstrip())
+            
+            # Detectar loop
+            if re.search(patron, linea):
+                stack_indentacion.append(espacios)
+                nivel_actual = len(stack_indentacion)
+                max_nivel = max(max_nivel, nivel_actual)
+            else:
+                # Salir de loops cuando la indentación disminuye
+                while stack_indentacion and espacios <= stack_indentacion[-1]:
+                    stack_indentacion.pop()
+    else:
+        nivel_actual = 0
+        for linea in lineas:
+            if re.search(patron, linea):
+                nivel_actual += 1
+                max_nivel = max(max_nivel, nivel_actual)
+            
+            if '}' in linea:
+                nivel_actual = max(0, nivel_actual - 1)
+    
+    return max_nivel
+
+
+def detectar_recursion(codigo: str, lineas: List[str], lenguaje: str) -> bool:
+    """Detecta llamadas recursivas"""
+    patrones_funcion = {
+        'python': r'def\s+(\w+)\s*\(',
+        'javascript': r'(function\s+(\w+)\s*\(|const\s+(\w+)\s*=.*=>)',
+        'java': r'(public|private|protected|static)?\s*\w+\s+(\w+)\s*\(',
+        'c': r'\w+\s+(\w+)\s*\([^)]*\)\s*\{',
+        'cpp': r'\w+\s+(\w+)\s*\([^)]*\)\s*\{',
+        'c++': r'\w+\s+(\w+)\s*\([^)]*\)\s*\{',
+    }
+    
+    patron = patrones_funcion.get(lenguaje, patrones_funcion.get('python'))
+    
+    funciones = []
+    for linea in lineas:
+        matches = re.finditer(patron, linea)
+        for match in matches:
+            for grupo in match.groups():
+                if grupo and grupo not in ['public', 'private', 'protected', 'static', 'function', 'const', 'def']:
+                    funciones.append(grupo)
+    
+    for nombre_funcion in funciones:
+        for linea in lineas:
+            if 'def ' in linea or 'function ' in linea:
+                continue
+            
+            if re.search(rf'\b{nombre_funcion}\s*\(', linea):
+                return True
+    
+    return False
+
+
+def calcular_complejidad_temporal(codigo: str, lineas: List[str], lenguaje: str) -> str:
+    """Calcula Big O temporal"""
+    loops = contar_loops_anidados(lineas, lenguaje)
+    tiene_recursion = detectar_recursion(codigo, lineas, lenguaje)
+    tiene_division_iterativa = detectar_division_iterativa_en_loop(codigo, lineas)
+    
+    if tiene_recursion:
+        if es_recursion_multiple(codigo):
+            return "O(2^n)"
+        elif es_recursion_dividir_conquistar(codigo):
+            return "O(n log n)"
+        else:
+            return "O(n)"
+    
+    elif loops >= 3:
+        return "O(n^3)"
+    elif loops == 2:
+        return "O(n^2)"
+    elif loops == 1:
+        if tiene_division_iterativa:
+            return "O(n log n)"
+        return "O(n)"
+    else:
+        return "O(1)"
+
+
+def detectar_division_iterativa_en_loop(codigo: str, lineas: List[str]) -> bool:
+    """Detecta si hay división iterativa DENTRO de un loop"""
+    en_loop = False
+    
+    for linea in lineas:
+        if re.search(r'^\s*(for|while)\s+', linea):
+            en_loop = True
+        
+        if en_loop:
+            if re.search(r'//=\s*2|/=\s*2', linea):
+                return True
+            
+            if re.search(r'(mid|mitad)\s*=.*//\s*2', linea):
+                return True
+        
+        if en_loop and linea.strip() and not linea.strip().startswith('#'):
+            espacios = len(linea) - len(linea.lstrip())
+            if espacios == 0:
+                en_loop = False
+    
+    return False
+
+
+def calcular_complejidad_espacial(codigo: str, lineas: List[str], lenguaje: str) -> str:
+    """Calcula Big O espacial"""
+    arrays_auxiliares = contar_arrays_auxiliares_significativos(codigo, lineas, lenguaje)
+    tiene_recursion = detectar_recursion(codigo, lineas, lenguaje)
+    tiene_matriz = detectar_matriz(codigo, lenguaje)
+    
+    if tiene_matriz:
+        return "O(n^2)"
+    elif tiene_recursion:
+        return "O(n)"
+    elif arrays_auxiliares > 0:
+        return "O(n)"
+    else:
+        return "O(1)"
+
+
+def contar_arrays_auxiliares_significativos(codigo: str, lineas: List[str], lenguaje: str) -> int:
+    """Cuenta solo arrays auxiliares que crecen proporcionalmente con la entrada"""
+    
+    if lenguaje == 'python':
+        contador = 0
+        
+        for linea in lineas:
+            if re.search(r'=\s*\[.+\]', linea) and not re.search(r'=\s*\[[^\]]{0,5}\]', linea):
+                contador += 1
+            
+            elif re.search(r'=\s*\[\s*\]', linea):
+                nombre_lista = re.search(r'(\w+)\s*=\s*\[\s*\]', linea)
+                if nombre_lista:
+                    lista = nombre_lista.group(1)
+                    if re.search(rf'{lista}\.append\(', codigo):
+                        contador += 1
+        
+        return contador
+    
+    return 0
+
+
+def es_recursion_multiple(codigo: str) -> bool:
+    """Detecta recursión múltiple"""
+    return len(re.findall(r'\w+\([^)]*-\s*\d+\)', codigo)) >= 2
+
+
+def es_recursion_dividir_conquistar(codigo: str) -> bool:
+    """Detecta recursión divide y conquista"""
+    patrones = [r'//\s*2', r'/\s*2', r'mid', r'mitad', r'medio', r'pivot']
+    return any(re.search(p, codigo, re.IGNORECASE) for p in patrones)
+
+
+def detectar_matriz(codigo: str, lenguaje: str) -> bool:
+    """Detecta matrices 2D"""
+    patrones = {
+        'python': r'\[\s*\[\s*\]|\[\s*\]\s*\*\s*\d+',
+        'javascript': r'new\s+Array\(.*\)\.fill\(\[|\.map\(\s*\(\)\s*=>\s*\[',
+        'java': r'new\s+\w+\[.*\]\[.*\]',
+        'c': r'\w+\s+\w+\[.*\]\[.*\]',
+        'cpp': r'vector<\s*vector<|new\s+\w+\[.*\]\[.*\]',
+        'c++': r'vector<\s*vector<|new\s+\w+\[.*\]\[.*\]',
+    }
+    
+    patron = patrones.get(lenguaje, r'\[\s*\[\s*\]')
+    return bool(re.search(patron, codigo))
+
+
+def detectar_patrones(codigo: str, lineas: List[str], lenguaje: str) -> List[Dict]:
+    """Detecta patrones algorítmicos"""
+    patrones = []
+    
+    if re.search(r'(binary|binaria|mid|mitad)', codigo, re.IGNORECASE):
+        patrones.append({'patron': 'Búsqueda Binaria', 'complejidad': 'O(log n)'})
+    
+    if re.search(r'(sort|ordenar|sorted|quicksort|mergesort)', codigo, re.IGNORECASE):
+        patrones.append({'patron': 'Ordenamiento', 'complejidad': 'O(n log n)'})
+    
+    if contar_loops_anidados(lineas, lenguaje) >= 2:
+        patrones.append({'patron': 'Fuerza Bruta', 'complejidad': 'O(n^2) o superior'})
+    
+    if re.search(r'(dict|map|hash|set)\s*[\(\{<]', codigo, re.IGNORECASE):
+        patrones.append({'patron': 'Hash Table', 'complejidad': 'O(1) búsquedas'})
+    
+    if re.search(r'(fibonacci|fib)', codigo, re.IGNORECASE):
+        patrones.append({'patron': 'Fibonacci', 'complejidad': 'O(2^n) o O(n) con memo'})
+    
+    if re.search(r'(dynamic|dinamica|memo|dp\[)', codigo, re.IGNORECASE):
+        patrones.append({'patron': 'Programación Dinámica', 'complejidad': 'Variable'})
+    
+    return patrones
+
+
+def detectar_estructuras_datos(codigo: str, lenguaje: str) -> List[str]:
+    """Detecta estructuras de datos"""
+    estructuras = []
+    
+    estructuras_patrones = {
+        'Array/Lista': r'\[|list\(|Array|vector<|ArrayList',
+        'Diccionario/Map': r'\{.*:.*\}|dict\(|Map|HashMap|map<',
+        'Set': r'set\(|Set|HashSet|unordered_set',
+        'Queue': r'queue|Queue|deque',
+        'Stack': r'stack|Stack',
+        'Heap': r'heap|Heap|PriorityQueue',
+        'Árbol': r'tree|Tree|node|Node|TreeNode',
+        'Grafo': r'graph|Graph|grafo|adjacency'
+    }
+    
+    for estructura, patron in estructuras_patrones.items():
+        if re.search(patron, codigo, re.IGNORECASE):
+            estructuras.append(estructura)
+    
+    return list(set(estructuras))
+
+
+def determinar_ganador(comp1: str, comp2: str) -> str:
+    """Determina qué código es más eficiente"""
+    orden = {
+        'O(1)': 1,
+        'O(log n)': 2,
+        'O(n)': 3,
+        'O(n log n)': 4,
+        'O(n^2)': 5,
+        'O(n^3)': 6,
+        'O(2^n)': 7,
+        'O(n!)': 8
+    }
+    
+    v1 = orden.get(comp1, 999)
+    v2 = orden.get(comp2, 999)
+    
+    if v1 < v2:
+        return 'codigo_1'
+    elif v2 < v1:
+        return 'codigo_2'
+    else:
+        return 'empate'
