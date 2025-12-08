@@ -1515,10 +1515,12 @@ LENGUAJES_SOPORTADOS = {
     'typescript': {'nombre': 'TypeScript', 'extensiones': ['.ts']},
 }
 
+from django.utils import timezone
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def analizar_big_o_individual(request, comparacion_id):
-    """Analizar Big O de una comparación - Solo análisis automático"""
+    """Analizar Big O de una comparación y guardar resultados"""
     payload = validar_token(request)
     
     if not payload or 'error' in payload:
@@ -1532,13 +1534,12 @@ def analizar_big_o_individual(request, comparacion_id):
         
         # Validar si el lenguaje es soportado
         if lenguaje not in LENGUAJES_SOPORTADOS:
-            # Intentar detectar por extensión
             extension = comparacion.lenguaje.extension
             lenguaje_detectado = detectar_lenguaje_por_extension(extension)
             
             if not lenguaje_detectado:
                 return JsonResponse({
-                    'advertencia': f'Lenguaje "{comparacion.lenguaje.nombre}" no completamente soportado. Usando análisis genérico.',
+                    'advertencia': f'Lenguaje "{comparacion.lenguaje.nombre}" no completamente soportado.',
                     'lenguaje_original': comparacion.lenguaje.nombre,
                     'usando_analisis': 'generico'
                 }, status=200)
@@ -1546,16 +1547,10 @@ def analizar_big_o_individual(request, comparacion_id):
             lenguaje = lenguaje_detectado
         
         # Analizar código 1
-        analisis_1 = analizar_codigo_big_o(
-            comparacion.codigo_1,
-            lenguaje
-        )
+        analisis_1 = analizar_codigo_big_o(comparacion.codigo_1, lenguaje)
         
         # Analizar código 2
-        analisis_2 = analizar_codigo_big_o(
-            comparacion.codigo_2,
-            lenguaje
-        )
+        analisis_2 = analizar_codigo_big_o(comparacion.codigo_2, lenguaje)
         
         # Determinar ganador
         ganador = determinar_ganador(
@@ -1563,19 +1558,53 @@ def analizar_big_o_individual(request, comparacion_id):
             analisis_2['complejidad_temporal']
         )
         
-        return JsonResponse({
+        # Preparar respuesta
+        resultado = {
             'mensaje': 'Análisis Big O completado',
             'codigo_1': analisis_1,
             'codigo_2': analisis_2,
             'ganador': ganador,
             'lenguaje': comparacion.lenguaje.nombre,
             'lenguaje_analizado': LENGUAJES_SOPORTADOS[lenguaje]['nombre']
-        }, status=200)
+        }
+        
+        # Guardar en base de datos
+        ResultadosEficienciaIndividual.objects.create(
+            id_comparacion_individual_id=comparacion_id,  # ← Usar _id para ForeignKey
+            
+            # Código 1
+            codigo_1_complejidad_temporal=analisis_1['complejidad_temporal'],
+            codigo_1_complejidad_espacial=analisis_1['complejidad_espacial'],
+            codigo_1_nivel_anidamiento=analisis_1['nivel_anidamiento'],
+            codigo_1_patrones_detectados=analisis_1['patrones_detectados'],
+            codigo_1_estructuras_datos=analisis_1['estructuras_datos'],
+            codigo_1_confianza_analisis=analisis_1['confianza_analisis'],
+            
+            # Código 2
+            codigo_2_complejidad_temporal=analisis_2['complejidad_temporal'],
+            codigo_2_complejidad_espacial=analisis_2['complejidad_espacial'],
+            codigo_2_nivel_anidamiento=analisis_2['nivel_anidamiento'],
+            codigo_2_patrones_detectados=analisis_2['patrones_detectados'],
+            codigo_2_estructuras_datos=analisis_2['estructuras_datos'],
+            codigo_2_confianza_analisis=analisis_2['confianza_analisis'],
+            
+            # Resultado
+            ganador=ganador,
+            
+            # Metadata
+            lenguaje=comparacion.lenguaje.nombre,
+            lenguaje_analizado=LENGUAJES_SOPORTADOS[lenguaje]['nombre'],
+            fecha_analisis=timezone.now()
+        )
+        
+        return JsonResponse(resultado, status=200)
         
     except ComparacionesIndividuales.DoesNotExist:
         return JsonResponse({'error': 'Comparación no encontrada'}, status=404)
     except Exception as e:
         import traceback
+        print("ERROR:", str(e))
+        print(traceback.format_exc())
         return JsonResponse({
             'error': str(e),
             'traceback': traceback.format_exc()

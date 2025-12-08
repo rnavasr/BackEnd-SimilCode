@@ -196,12 +196,24 @@ class ResultadosEficienciaGrupal(models.Model):
         app_label = 'app'
 
 class ResultadosEficienciaIndividual(models.Model):
-    comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING)
-    numero_codigo = models.IntegerField(blank=True, null=True)
-    complejidad_temporal = models.CharField(max_length=50, blank=True, null=True)
-    complejidad_espacial = models.CharField(max_length=50, blank=True, null=True)
-    puntuacion_eficiencia = models.IntegerField(blank=True, null=True)
-    es_mas_eficiente = models.BooleanField(blank=True, null=True)
+    id_resultado_eficiencia_individual = models.AutoField(primary_key=True)
+    id_comparacion_individual = models.ForeignKey(ComparacionesIndividuales, models.DO_NOTHING, db_column='id_comparacion_individual')
+    codigo_1_complejidad_temporal = models.CharField(max_length=50)
+    codigo_1_complejidad_espacial = models.CharField(max_length=50)
+    codigo_1_nivel_anidamiento = models.IntegerField(blank=True, null=True)
+    codigo_1_patrones_detectados = models.JSONField(blank=True, null=True)
+    codigo_1_estructuras_datos = models.JSONField(blank=True, null=True)
+    codigo_1_confianza_analisis = models.CharField(max_length=50, blank=True, null=True)
+    codigo_2_complejidad_temporal = models.CharField(max_length=50)
+    codigo_2_complejidad_espacial = models.CharField(max_length=50)
+    codigo_2_nivel_anidamiento = models.IntegerField(blank=True, null=True)
+    codigo_2_patrones_detectados = models.JSONField(blank=True, null=True)
+    codigo_2_estructuras_datos = models.JSONField(blank=True, null=True)
+    codigo_2_confianza_analisis = models.CharField(max_length=50, blank=True, null=True)
+    ganador = models.CharField(max_length=20, blank=True, null=True)
+    lenguaje = models.CharField(max_length=50, blank=True, null=True)
+    lenguaje_analizado = models.CharField(max_length=50, blank=True, null=True)
+    fecha_analisis = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False

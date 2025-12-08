@@ -208,12 +208,23 @@ CREATE TABLE resultados_similitud_grupal (
 -- Tabla de resultados de eficiencia para comparaciones individuales
 CREATE TABLE resultados_eficiencia_individual (
     id_resultado_eficiencia_individual SERIAL PRIMARY KEY,
-    id_comparacion_individual INTEGER NOT NULL REFERENCES comparaciones_individuales(id_comparacion_individual) ON DELETE CASCADE,
-    numero_codigo INTEGER CHECK (numero_codigo IN (1, 2)),
-    complejidad_temporal VARCHAR(50),
-    complejidad_espacial VARCHAR(50),
-    puntuacion_eficiencia INTEGER CHECK (puntuacion_eficiencia >= 0 AND puntuacion_eficiencia <= 100),
-    es_mas_eficiente BOOLEAN
+    id_comparacion_individual INTEGER NOT NULL REFERENCES comparaciones_individuales(id),
+    codigo_1_complejidad_temporal VARCHAR(50) NOT NULL,
+    codigo_1_complejidad_espacial VARCHAR(50) NOT NULL,
+    codigo_1_nivel_anidamiento INTEGER DEFAULT 0,
+    codigo_1_patrones_detectados JSONB,
+    codigo_1_estructuras_datos JSONB,
+    codigo_1_confianza_analisis VARCHAR(50),
+    codigo_2_complejidad_temporal VARCHAR(50) NOT NULL,
+    codigo_2_complejidad_espacial VARCHAR(50) NOT NULL,
+    codigo_2_nivel_anidamiento INTEGER DEFAULT 0,
+    codigo_2_patrones_detectados JSONB,
+    codigo_2_estructuras_datos JSONB,
+    codigo_2_confianza_analisis VARCHAR(50),
+    ganador VARCHAR(20) CHECK (ganador IN ('codigo_1', 'codigo_2', 'empate')),
+    lenguaje VARCHAR(50),
+    lenguaje_analizado VARCHAR(50),
+    fecha_analisis TIMESTAMP
 );
 
 -- Tabla de resultados de eficiencia para comparaciones grupales
