@@ -1989,3 +1989,303 @@ def determinar_ganador(comp1: str, comp2: str) -> str:
         return 'codigo_2'
     else:
         return 'empate'
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
+    try:
+        # 1. Obtener el resultado de eficiencia
+        try:
+            resultado_eficiencia = ResultadosEficienciaIndividual.objects.select_related(
+                'id_comparacion_individual',
+                'id_comparacion_individual__lenguaje',
+                'id_comparacion_individual__id_modelo_ia'
+            ).get(id_resultado_eficiencia_individual=id_resultado_eficiencia)
+        except ResultadosEficienciaIndividual.DoesNotExist:
+            return JsonResponse({
+                'error': f'Resultado de eficiencia {id_resultado_eficiencia} no encontrado'
+            }, status=404)
+        
+        comparacion = resultado_eficiencia.id_comparacion_individual
+        
+        # 2. Obtener el modelo IA
+        if not comparacion.id_modelo_ia:
+            return JsonResponse({
+                'error': 'La comparación no tiene un modelo de IA asignado'
+            }, status=400)
+        
+        modelo_ia = comparacion.id_modelo_ia
+        
+        # 3. Obtener la configuración según el tipo de modelo
+        config = None
+        proveedor = None
+        prompt_eficiencia = None
+        
+        # Intentar obtener configuración de cada proveedor
+        try:
+            config = ConfiguracionClaude.objects.select_related('id_prompt_eficiencia').get(
+                id_modelo_ia_id=modelo_ia.id,
+                activo=True
+            )
+            proveedor = 'Claude'
+            prompt_eficiencia = config.id_prompt_eficiencia
+        except ConfiguracionClaude.DoesNotExist:
+            pass
+        
+        if not config:
+            try:
+                config = ConfiguracionOpenai.objects.select_related('id_prompt_eficiencia').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'OpenAI'
+                prompt_eficiencia = config.id_prompt_eficiencia
+            except ConfiguracionOpenai.DoesNotExist:
+                pass
+        
+        if not config:
+            try:
+                config = ConfiguracionGemini.objects.select_related('id_prompt_eficiencia').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'Gemini'
+                prompt_eficiencia = config.id_prompt_eficiencia
+            except ConfiguracionGemini.DoesNotExist:
+                pass
+        
+        if not config:
+            try:
+                config = ConfiguracionDeepseek.objects.select_related('id_prompt_eficiencia').get(
+                    id_modelo_ia_id=modelo_ia.id,
+                    activo=True
+                )
+                proveedor = 'DeepSeek'
+                prompt_eficiencia = config.id_prompt_eficiencia
+            except ConfiguracionDeepseek.DoesNotExist:
+                pass
+        
+        if not config:
+            return JsonResponse({
+                'error': 'No hay configuración activa para este modelo de IA'
+            }, status=404)
+        
+        # 4. Verificar que el prompt de eficiencia exista y esté activo
+        if not prompt_eficiencia:
+            return JsonResponse({
+                'error': 'No hay prompt de eficiencia configurado para este modelo'
+            }, status=400)
+        
+        if not prompt_eficiencia.activo:
+            return JsonResponse({
+                'error': 'El prompt de eficiencia configurado no está activo'
+            }, status=400)
+        
+        # 5. Reemplazar placeholders en el prompt con los datos de la comparación y análisis
+        prompt_procesado = prompt_eficiencia.template_prompt.format(
+            lenguaje=comparacion.lenguaje.nombre if comparacion.lenguaje else 'No especificado',
+            codigo_1=comparacion.codigo_1,
+            codigo_2=comparacion.codigo_2,
+            codigo_1_complejidad_temporal=resultado_eficiencia.codigo_1_complejidad_temporal,
+            codigo_1_complejidad_espacial=resultado_eficiencia.codigo_1_complejidad_espacial,
+            codigo_1_nivel_anidamiento=resultado_eficiencia.codigo_1_nivel_anidamiento or 0,
+            codigo_1_patrones_detectados=json.dumps(resultado_eficiencia.codigo_1_patrones_detectados or {}, indent=2),
+            codigo_1_estructuras_datos=json.dumps(resultado_eficiencia.codigo_1_estructuras_datos or {}, indent=2),
+            codigo_1_confianza_analisis=resultado_eficiencia.codigo_1_confianza_analisis or 'No especificada',
+            codigo_2_complejidad_temporal=resultado_eficiencia.codigo_2_complejidad_temporal,
+            codigo_2_complejidad_espacial=resultado_eficiencia.codigo_2_complejidad_espacial,
+            codigo_2_nivel_anidamiento=resultado_eficiencia.codigo_2_nivel_anidamiento or 0,
+            codigo_2_patrones_detectados=json.dumps(resultado_eficiencia.codigo_2_patrones_detectados or {}, indent=2),
+            codigo_2_estructuras_datos=json.dumps(resultado_eficiencia.codigo_2_estructuras_datos or {}, indent=2),
+            codigo_2_confianza_analisis=resultado_eficiencia.codigo_2_confianza_analisis or 'No especificada'
+        )
+        
+        # 6. Preparar headers y payload según el proveedor
+        headers = {}
+        payload = {}
+        
+        if proveedor == 'Claude':
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': config.api_key,
+                'anthropic-version': config.anthropic_version
+            }
+            payload = {
+                'model': config.model_name,
+                'max_tokens': config.max_tokens,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ]
+            }
+            
+        elif proveedor == 'OpenAI':
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {config.api_key}'
+            }
+            payload = {
+                'model': config.model_name,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ],
+                'max_tokens': config.max_tokens,
+                'temperature': float(config.temperature)
+            }
+            
+        elif proveedor == 'Gemini':
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            # Gemini usa la API key en la URL
+            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={config.api_key}"
+            payload = {
+                'contents': [
+                    {
+                        'parts': [
+                            {
+                                'text': prompt_procesado
+                            }
+                        ]
+                    }
+                ],
+                'generationConfig': {
+                    'maxOutputTokens': config.max_tokens,
+                    'temperature': float(config.temperature)
+                }
+            }
+            
+        elif proveedor == 'DeepSeek':
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {config.api_key}'
+            }
+            payload = {
+                'model': config.model_name,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt_procesado
+                    }
+                ],
+                'max_tokens': config.max_tokens,
+                'temperature': float(config.temperature)
+            }
+        
+        # 7. Hacer la petición
+        inicio = time.time()
+        
+        # Para Gemini, usamos la URL modificada
+        url = endpoint_url if proveedor == 'Gemini' else config.endpoint_url
+        
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=120  # Más tiempo para análisis más complejos
+        )
+        
+        tiempo_respuesta = time.time() - inicio
+        
+        # 8. Verificar respuesta
+        if response.status_code != 200:
+            return JsonResponse({
+                'error': f'Error de la API {proveedor}: {response.status_code}',
+                'detalle': response.text
+            }, status=response.status_code)
+        
+        # 9. Extraer la respuesta según el proveedor
+        response_data = response.json()
+        comentario_ia = None
+        tokens_usados = 0
+        
+        if proveedor == 'Claude':
+            comentario_ia = response_data['content'][0]['text']
+            tokens_usados = (
+                response_data.get('usage', {}).get('input_tokens', 0) + 
+                response_data.get('usage', {}).get('output_tokens', 0)
+            )
+            
+        elif proveedor == 'OpenAI':
+            comentario_ia = response_data['choices'][0]['message']['content']
+            tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
+            
+        elif proveedor == 'Gemini':
+            comentario_ia = response_data['candidates'][0]['content']['parts'][0]['text']
+            tokens_usados = (
+                response_data.get('usageMetadata', {}).get('promptTokenCount', 0) +
+                response_data.get('usageMetadata', {}).get('candidatesTokenCount', 0)
+            )
+            
+        elif proveedor == 'DeepSeek':
+            comentario_ia = response_data['choices'][0]['message']['content']
+            tokens_usados = response_data.get('usage', {}).get('total_tokens', 0)
+        
+        # 10. Guardar el comentario en la base de datos
+        # Eliminar comentario anterior si existe (para evitar duplicados)
+        ComentariosEficienciaIndividual.objects.filter(
+            id_resultado_eficiencia_individual=resultado_eficiencia
+        ).delete()
+        
+        # Crear nuevo comentario
+        comentario = ComentariosEficienciaIndividual.objects.create(
+            id_resultado_eficiencia_individual=resultado_eficiencia,
+            comentario=comentario_ia
+        )
+        
+        # 11. Retornar resultado
+        return JsonResponse({
+            'mensaje': 'Comentario de eficiencia generado exitosamente',
+            'comentario_id': comentario.id_comentario_eficiencia,
+            'resultado_eficiencia_id': id_resultado_eficiencia,
+            'modelo_usado': modelo_ia.nombre,
+            'proveedor': proveedor,
+            'model_name': config.model_name,
+            'prompt_usado': {
+                'id': prompt_eficiencia.id_prompt_eficiencia,
+                'version': prompt_eficiencia.version,
+                'descripcion': prompt_eficiencia.descripcion,
+                'tipo_analisis': prompt_eficiencia.tipo_analisis
+            },
+            'tiempo_respuesta_segundos': round(tiempo_respuesta, 2),
+            'tokens_usados': tokens_usados,
+            'analisis_big_o': {
+                'codigo_1': {
+                    'temporal': resultado_eficiencia.codigo_1_complejidad_temporal,
+                    'espacial': resultado_eficiencia.codigo_1_complejidad_espacial,
+                    'ganador': resultado_eficiencia.ganador == 'codigo_1'
+                },
+                'codigo_2': {
+                    'temporal': resultado_eficiencia.codigo_2_complejidad_temporal,
+                    'espacial': resultado_eficiencia.codigo_2_complejidad_espacial,
+                    'ganador': resultado_eficiencia.ganador == 'codigo_2'
+                }
+            },
+            'comentario_preview': comentario_ia[:500] + '...' if len(comentario_ia) > 500 else comentario_ia
+        }, status=200)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'JSON inválido en el body'
+        }, status=400)
+    except requests.Timeout:
+        return JsonResponse({
+            'error': 'Timeout al llamar a la API de IA (análisis muy extenso)'
+        }, status=504)
+    except requests.RequestException as e:
+        return JsonResponse({
+            'error': f'Error en la petición HTTP: {str(e)}'
+        }, status=500)
+    except KeyError as e:
+        return JsonResponse({
+            'error': f'Falta un campo requerido en el prompt: {str(e)}'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error interno: {str(e)}'
+        }, status=500)

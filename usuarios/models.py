@@ -109,6 +109,7 @@ class ConfiguracionClaude(models.Model):
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     fecha_modificacion = models.DateTimeField(blank=True, null=True)
+    id_prompt_eficiencia = models.ForeignKey('PromptEficienciaAlgoritmica', models.DO_NOTHING, db_column='id_prompt_eficiencia', blank=True, null=True)
 
     class Meta:
         managed = False
@@ -127,6 +128,7 @@ class ConfiguracionDeepseek(models.Model):
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     fecha_modificacion = models.DateTimeField(blank=True, null=True)
+    id_prompt_eficiencia = models.ForeignKey('PromptEficienciaAlgoritmica', models.DO_NOTHING, db_column='id_prompt_eficiencia', blank=True, null=True)
 
     class Meta:
         managed = False
@@ -145,6 +147,7 @@ class ConfiguracionGemini(models.Model):
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     fecha_modificacion = models.DateTimeField(blank=True, null=True)
+    id_prompt_eficiencia = models.ForeignKey('PromptEficienciaAlgoritmica', models.DO_NOTHING, db_column='id_prompt_eficiencia', blank=True, null=True)
 
     class Meta:
         managed = False
@@ -163,10 +166,37 @@ class ConfiguracionOpenai(models.Model):
     activo = models.BooleanField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
     fecha_modificacion = models.DateTimeField(blank=True, null=True)
+    id_prompt_eficiencia = models.ForeignKey('PromptEficienciaAlgoritmica', models.DO_NOTHING, db_column='id_prompt_eficiencia', blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'configuracion_openai'
+        app_label = 'app'
+
+class ComentariosEficienciaIndividual(models.Model):
+    id_comentario_eficiencia = models.AutoField(primary_key=True)
+    id_resultado_eficiencia_individual = models.ForeignKey('ResultadosEficienciaIndividual', models.DO_NOTHING, db_column='id_resultado_eficiencia_individual')
+    comentario = models.TextField()
+    fecha_generacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'comentarios_eficiencia_individual'
+        app_label = 'app'
+
+class PromptEficienciaAlgoritmica(models.Model):
+    id_prompt_eficiencia = models.AutoField(primary_key=True)
+    template_prompt = models.TextField()
+    descripcion = models.TextField(blank=True, null=True)
+    version = models.CharField(max_length=20, blank=True, null=True)
+    tipo_analisis = models.CharField(max_length=50, blank=True, null=True)
+    activo = models.BooleanField(blank=True, null=True)
+    fecha_creacion = models.DateTimeField(blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'prompt_eficiencia_algoritmica'
         app_label = 'app'
 
 class ProveedoresIa(models.Model):
