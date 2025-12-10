@@ -1527,12 +1527,10 @@ def analizar_big_o_individual(request, comparacion_id):
         return JsonResponse({'error': 'Token inválido'}, status=401)
     
     try:
-        # Obtener comparación
         comparacion = ComparacionesIndividuales.objects.get(pk=comparacion_id)
         
         lenguaje = comparacion.lenguaje.nombre.lower()
         
-        # Validar si el lenguaje es soportado
         if lenguaje not in LENGUAJES_SOPORTADOS:
             extension = comparacion.lenguaje.extension
             lenguaje_detectado = detectar_lenguaje_por_extension(extension)
@@ -1546,19 +1544,14 @@ def analizar_big_o_individual(request, comparacion_id):
             
             lenguaje = lenguaje_detectado
         
-        # Analizar código 1
         analisis_1 = analizar_codigo_big_o(comparacion.codigo_1, lenguaje)
-        
-        # Analizar código 2
         analisis_2 = analizar_codigo_big_o(comparacion.codigo_2, lenguaje)
         
-        # Determinar ganador
         ganador = determinar_ganador(
             analisis_1['complejidad_temporal'],
             analisis_2['complejidad_temporal']
         )
         
-        # Preparar respuesta
         resultado = {
             'mensaje': 'Análisis Big O completado',
             'codigo_1': analisis_1,
@@ -1569,33 +1562,28 @@ def analizar_big_o_individual(request, comparacion_id):
         }
         
         # Guardar en base de datos
-        ResultadosEficienciaIndividual.objects.create(
-            id_comparacion_individual_id=comparacion_id,  # ← Usar _id para ForeignKey
-            
-            # Código 1
+        resultado_bd = ResultadosEficienciaIndividual.objects.create(
+            id_comparacion_individual_id=comparacion_id,
             codigo_1_complejidad_temporal=analisis_1['complejidad_temporal'],
             codigo_1_complejidad_espacial=analisis_1['complejidad_espacial'],
             codigo_1_nivel_anidamiento=analisis_1['nivel_anidamiento'],
             codigo_1_patrones_detectados=analisis_1['patrones_detectados'],
             codigo_1_estructuras_datos=analisis_1['estructuras_datos'],
             codigo_1_confianza_analisis=analisis_1['confianza_analisis'],
-            
-            # Código 2
             codigo_2_complejidad_temporal=analisis_2['complejidad_temporal'],
             codigo_2_complejidad_espacial=analisis_2['complejidad_espacial'],
             codigo_2_nivel_anidamiento=analisis_2['nivel_anidamiento'],
             codigo_2_patrones_detectados=analisis_2['patrones_detectados'],
             codigo_2_estructuras_datos=analisis_2['estructuras_datos'],
             codigo_2_confianza_analisis=analisis_2['confianza_analisis'],
-            
-            # Resultado
             ganador=ganador,
-            
-            # Metadata
             lenguaje=comparacion.lenguaje.nombre,
             lenguaje_analizado=LENGUAJES_SOPORTADOS[lenguaje]['nombre'],
             fecha_analisis=timezone.now()
         )
+        
+        # ← IMPORTANTE: Agregar el ID del resultado a la respuesta
+        resultado['resultado_id'] = resultado_bd.id_resultado_eficiencia_individual
         
         return JsonResponse(resultado, status=200)
         
