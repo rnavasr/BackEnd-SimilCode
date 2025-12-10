@@ -2254,6 +2254,7 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
                     'ganador': resultado_eficiencia.ganador == 'codigo_2'
                 }
             },
+            'comentario': comentario_ia,  # ← AGREGAR ESTA LÍNEA
             'comentario_preview': comentario_ia[:500] + '...' if len(comentario_ia) > 500 else comentario_ia
         }, status=200)
         
