@@ -30,4 +30,6 @@ urlpatterns = [
     path('cambiar_estado_lenguaje_docente/<int:lenguaje_id>/', views.cambiar_estado_lenguaje_docente, name='cambiar_estado_lenguaje_docente'),
     path('analisis_big_o_individual/<int:comparacion_id>/', views.analizar_big_o_individual, name='analisis_big_o_individual'),
     path('crear_comentario_eficiencia_individual/<int:id_resultado_eficiencia>/', views.crear_comentario_eficiencia_individual, name='crear_comentario_eficiencia_individual'),
+    path('mostrar_resultados_eficiencia_individual/<int:comparacion_id>/', views.obtener_resultados_eficiencia_individual, name="obtener_resultados_eficiencia_individual"),
+    path('mostrar_comentarios_eficiencia_individual/<int:comparacion_id>/', views.obtener_comentarios_eficiencia_individual, name="obtener_comentarios_eficiencia_individual"),
 ]

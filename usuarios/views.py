@@ -2278,3 +2278,129 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
         return JsonResponse({
             'error': f'Error interno: {str(e)}'
         }, status=500)
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def obtener_resultados_eficiencia_individual(request, comparacion_id):
+    """Obtener los resultados de eficiencia de una comparación individual"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener la comparación individual
+        comparacion = ComparacionesIndividuales.objects.select_related(
+            'usuario'
+        ).get(id=comparacion_id)
+        
+        # Verificar que el usuario autenticado sea el dueño de la comparación
+        usuario_id_token = payload.get('usuario_id')
+        if comparacion.usuario.id != usuario_id_token:
+            return JsonResponse({
+                'error': 'No tienes permiso para ver estos resultados'
+            }, status=403)
+        
+        # Obtener todos los resultados de eficiencia para esta comparación
+        resultados = ResultadosEficienciaIndividual.objects.filter(
+            id_comparacion_individual=comparacion_id
+        )
+        
+        # Construir la lista de resultados
+        resultados_list = []
+        for resultado in resultados:
+            resultados_list.append({
+                'id_resultado': resultado.id_resultado_eficiencia_individual,
+                'codigo_1': {
+                    'complejidad_temporal': resultado.codigo_1_complejidad_temporal,
+                    'complejidad_espacial': resultado.codigo_1_complejidad_espacial,
+                    'nivel_anidamiento': resultado.codigo_1_nivel_anidamiento,
+                    'patrones_detectados': resultado.codigo_1_patrones_detectados,
+                    'estructuras_datos': resultado.codigo_1_estructuras_datos,
+                    'confianza_analisis': resultado.codigo_1_confianza_analisis
+                },
+                'codigo_2': {
+                    'complejidad_temporal': resultado.codigo_2_complejidad_temporal,
+                    'complejidad_espacial': resultado.codigo_2_complejidad_espacial,
+                    'nivel_anidamiento': resultado.codigo_2_nivel_anidamiento,
+                    'patrones_detectados': resultado.codigo_2_patrones_detectados,
+                    'estructuras_datos': resultado.codigo_2_estructuras_datos,
+                    'confianza_analisis': resultado.codigo_2_confianza_analisis
+                },
+                'ganador': resultado.ganador,
+                'lenguaje': resultado.lenguaje,
+                'lenguaje_analizado': resultado.lenguaje_analizado,
+                'fecha_analisis': resultado.fecha_analisis.isoformat() if resultado.fecha_analisis else None
+            })
+        
+        return JsonResponse({
+            'resultados': resultados_list
+        }, status=200)
+        
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({
+            'error': f'No se encontró la comparación con ID {comparacion_id}'
+        }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def obtener_comentarios_eficiencia_individual(request, comparacion_id):
+    """Obtener los comentarios de eficiencia de una comparación individual"""
+    payload = validar_token(request)
+    
+    if not payload:
+        return JsonResponse({'error': 'Token requerido'}, status=401)
+    
+    if 'error' in payload:
+        return JsonResponse(payload, status=401)
+    
+    try:
+        # Obtener la comparación individual
+        comparacion = ComparacionesIndividuales.objects.select_related(
+            'usuario'
+        ).get(id=comparacion_id)
+        
+        # Verificar que el usuario autenticado sea el dueño de la comparación
+        usuario_id_token = payload.get('usuario_id')
+        if comparacion.usuario.id != usuario_id_token:
+            return JsonResponse({
+                'error': 'No tienes permiso para ver estos comentarios'
+            }, status=403)
+        
+        # Obtener los resultados de eficiencia para esta comparación
+        resultados_eficiencia = ResultadosEficienciaIndividual.objects.filter(
+            id_comparacion_individual=comparacion_id
+        )
+        
+        # Obtener todos los comentarios relacionados a estos resultados
+        comentarios = ComentariosEficienciaIndividual.objects.filter(
+            id_resultado_eficiencia_individual__in=resultados_eficiencia
+        ).select_related('id_resultado_eficiencia_individual')
+        
+        # Construir la lista de comentarios
+        comentarios_list = []
+        for comentario in comentarios:
+            comentarios_list.append({
+                'id_comentario': comentario.id_comentario_eficiencia,
+                'id_resultado_eficiencia': comentario.id_resultado_eficiencia_individual.id_resultado_eficiencia_individual,
+                'comentario': comentario.comentario,
+                'fecha_generacion': comentario.fecha_generacion.isoformat() if comentario.fecha_generacion else None
+            })
+        
+        return JsonResponse({
+            'comentarios': comentarios_list
+        }, status=200)
+        
+    except ComparacionesIndividuales.DoesNotExist:
+        return JsonResponse({
+            'error': f'No se encontró la comparación con ID {comparacion_id}'
+        }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
