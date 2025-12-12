@@ -166,24 +166,19 @@ CREATE TABLE lenguajes (
 
 CREATE TABLE comparaciones_individuales (
     id SERIAL PRIMARY KEY,
-    id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
     id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),
     nombre_comparacion VARCHAR(200),
     codigo_1 TEXT NOT NULL,
     codigo_2 TEXT NOT NULL,
     estado VARCHAR(20) DEFAULT 'Reciente',
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT check_solo_un_modelo CHECK (
-        (id_modelo_ia IS NOT NULL AND id_modelo_ia_usuario IS NULL) OR
-        (id_modelo_ia IS NULL AND id_modelo_ia_usuario IS NOT NULL)
-    )
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE comparaciones_grupales (
     id_comparacion_grupal SERIAL PRIMARY KEY,
-    id_usuario INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    id_usuario INTEGER NOT NULL REFERENCES usuarios(id),
     id_modelo_ia INTEGER REFERENCES modelos_ia(id_modelo_ia),
     id_lenguaje INTEGER NOT NULL REFERENCES lenguajes(id_lenguaje),
     nombre_comparacion VARCHAR(200),

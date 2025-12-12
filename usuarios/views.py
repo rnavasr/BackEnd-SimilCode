@@ -227,7 +227,7 @@ def listar_comparaciones_grupales(request, usuario_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def crear_comparacion_grupal(request):
-    """Crear una nueva comparación grupal"""
+    """Crear una nueva comparación grupal con múltiples códigos"""
     payload = validar_token(request)
     
     if not payload:
@@ -237,38 +237,140 @@ def crear_comparacion_grupal(request):
         return JsonResponse(payload, status=401)
     
     try:
-        # Obtener datos del FormData
-        usuario_id = request.POST.get('usuario_id')
-        modelo_ia_id = request.POST.get('modelo_ia_id')
-        lenguaje_id = request.POST.get('lenguaje_id')
+        from django.db import transaction
+        
+        # Obtener datos básicos con los nombres correctos
+        id_usuario = request.POST.get('id_usuario')
+        id_modelo_ia = request.POST.get('id_modelo_ia')
+        id_lenguaje = request.POST.get('id_lenguaje')
         nombre_comparacion = request.POST.get('nombre_comparacion')
         estado = request.POST.get('estado', 'Reciente')
         
-        # Validaciones
-        if not all([usuario_id, modelo_ia_id, lenguaje_id]):
+        # Validaciones básicas
+        if not all([id_usuario, id_modelo_ia, id_lenguaje]):
             return JsonResponse({
-                'error': 'Faltan campos requeridos: usuario_id, modelo_ia_id, lenguaje_id'
+                'error': 'Faltan campos requeridos: id_usuario, id_modelo_ia, id_lenguaje'
             }, status=400)
         
-        # Crear la comparación grupal
-        comparacion = ComparacionesGrupales.objects.create(
-            usuario_id=usuario_id,
-            modelo_ia_id=modelo_ia_id,
-            lenguaje_id=lenguaje_id,
-            nombre_comparacion=nombre_comparacion,
-            estado=estado,
-            fecha_creacion=timezone.now()
-        )
+        # Validar registros relacionados
+        if not Usuarios.objects.filter(pk=id_usuario).exists():
+            return JsonResponse({'error': f'Usuario con id {id_usuario} no existe'}, status=400)
+        
+        if not ModelosIa.objects.filter(pk=id_modelo_ia).exists():
+            return JsonResponse({'error': f'Modelo IA con id {id_modelo_ia} no existe'}, status=400)
+        
+        try:
+            lenguaje = Lenguajes.objects.get(pk=id_lenguaje)
+            extension_esperada = lenguaje.extension
+        except Lenguajes.DoesNotExist:
+            return JsonResponse({'error': f'Lenguaje con id {id_lenguaje} no existe'}, status=400)
+        
+        # Función para validar y extraer código
+        def obtener_codigo(nombre_campo, campo_texto, campo_archivo, extension_esperada):
+            codigo = request.POST.get(campo_texto)
+            archivo = request.FILES.get(campo_archivo)
+            
+            if archivo:
+                _, extension_archivo = os.path.splitext(archivo.name)
+                extension_archivo = extension_archivo.lower()
+                
+                if extension_esperada:
+                    extension_esperada_con_punto = extension_esperada if extension_esperada.startswith('.') else f'.{extension_esperada}'
+                    
+                    if extension_archivo != extension_esperada_con_punto.lower():
+                        raise ValueError(
+                            f'El archivo {nombre_campo} debe tener extensión '
+                            f'{extension_esperada_con_punto}, pero tiene {extension_archivo}'
+                        )
+                
+                try:
+                    contenido = archivo.read().decode('utf-8')
+                    return contenido, archivo.name
+                except UnicodeDecodeError:
+                    raise ValueError(f'El archivo {nombre_campo} no está en formato UTF-8 válido')
+            
+            elif codigo:
+                return codigo, None
+            
+            return None, None
+        
+        # Recolectar códigos dinámicamente (codigo_1, codigo_2, codigo_3, ...)
+        codigos_data = []
+        orden = 1
+        
+        while True:
+            codigo, nombre_archivo = obtener_codigo(
+                f'codigo_{orden}',
+                f'codigo_{orden}',
+                f'archivo_{orden}',
+                extension_esperada
+            )
+            
+            if not codigo:
+                break
+            
+            # Permitir nombre de archivo personalizado
+            nombre_archivo_custom = request.POST.get(f'nombre_archivo_{orden}')
+            
+            codigos_data.append({
+                'codigo': codigo,
+                'nombre_archivo': nombre_archivo_custom or nombre_archivo or f'codigo_{orden}',
+                'orden': orden
+            })
+            
+            orden += 1
+        
+        # Validar mínimo 3 códigos
+        if len(codigos_data) < 3:
+            return JsonResponse({
+                'error': 'Debes proporcionar al menos 3 códigos para comparar'
+            }, status=400)
+        
+        # Crear comparación y códigos en una transacción
+        with transaction.atomic():
+            # Crear comparación grupal
+            comparacion = ComparacionesGrupales.objects.create(
+                usuario_id=id_usuario,
+                lenguaje_id=id_lenguaje,
+                id_modelo_ia_id=id_modelo_ia,
+                nombre_comparacion=nombre_comparacion,
+                estado=estado,
+                fecha_creacion=timezone.now()
+            )
+            
+            # Crear códigos fuente asociados
+            codigos_creados = []
+            for codigo_data in codigos_data:
+                codigo_fuente = CodigosFuente.objects.create(
+                    comparacion_grupal_id=comparacion.pk,
+                    codigo=codigo_data['codigo'],
+                    nombre_archivo=codigo_data['nombre_archivo'],
+                    orden=codigo_data['orden']
+                )
+                codigos_creados.append({
+                    'id': codigo_fuente.pk,
+                    'nombre_archivo': codigo_fuente.nombre_archivo,
+                    'orden': codigo_fuente.orden
+                })
         
         return JsonResponse({
             'mensaje': 'Comparación grupal creada exitosamente',
-            'id': comparacion.id,
+            'id': comparacion.pk,
             'nombre_comparacion': comparacion.nombre_comparacion,
-            'fecha_creacion': comparacion.fecha_creacion
+            'fecha_creacion': comparacion.fecha_creacion.isoformat(),
+            'lenguaje': lenguaje.nombre,
+            'total_codigos': len(codigos_creados),
+            'codigos': codigos_creados
         }, status=201)
         
+    except ValueError as ve:
+        return JsonResponse({'error': str(ve)}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        import traceback
+        return JsonResponse({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
 
 @csrf_exempt
 @require_http_methods(["POST"])
