@@ -704,7 +704,6 @@ def marcar_individual_reciente(request, comparacion_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
 @csrf_exempt
 @require_http_methods(["PATCH"])
 def marcar_individual_destacado(request, comparacion_id):
@@ -725,7 +724,6 @@ def marcar_individual_destacado(request, comparacion_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
 @csrf_exempt
 @require_http_methods(["PATCH"])
 def marcar_individual_oculto(request, comparacion_id):
@@ -745,7 +743,6 @@ def marcar_individual_oculto(request, comparacion_id):
         return JsonResponse({'error': 'No encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
 
 @csrf_exempt
 @require_http_methods(["PATCH"])
