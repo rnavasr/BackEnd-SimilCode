@@ -907,7 +907,6 @@ def listar_comparaciones(request):
             'id_modelo_ia'
         ).order_by('-fecha_creacion')
 
-        print(f"🔍 DEBUG: Total de comparaciones en el sistema: {comparaciones.count()}")
 
         data = []
         for comp in comparaciones:
@@ -925,7 +924,6 @@ def listar_comparaciones(request):
                 "fecha_creacion": comp.fecha_creacion,
             })
 
-        print(f"🔍 DEBUG: Datos a enviar: {len(data)} comparaciones")
 
         return JsonResponse({"comparaciones": data}, status=200)
 
@@ -963,7 +961,6 @@ def cambiar_estado_comparacion(request, id_comparacion):
                 "error": "Comparación no encontrada"
             }, status=404)
 
-        print(f"🔍 DEBUG: Comparación {comparacion.id} - Estado actual: {comparacion.estado}")
 
         # Cambiar estado entre 'Reciente' y 'Oculto'
         if comparacion.estado == 'Reciente':
@@ -973,7 +970,6 @@ def cambiar_estado_comparacion(request, id_comparacion):
         
         comparacion.save()
 
-        print(f"✅ DEBUG: Nuevo estado: {comparacion.estado}")
 
         return JsonResponse({
             "mensaje": f"Estado cambiado a '{comparacion.estado}' exitosamente",

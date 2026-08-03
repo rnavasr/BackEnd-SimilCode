@@ -10,6 +10,7 @@ from django.conf import settings
 from usuarios.models import ComentariosCodigoGrupal, ComentariosIaGrupal,ComparacionesPareadas
 from usuarios.models import *
 from usuarios.models import ComparacionesGrupales, ComparacionesIndividuales, Lenguajes, ModelosIa, ProveedoresIa
+from usuarios.credenciales import clave_api, CredencialAusente
 from django.utils import timezone
 from django.db.models import Q
 import requests
@@ -1102,11 +1103,19 @@ def crear_comparacion_ia(request, id_comparacion):
         
         headers = {}
         payload = {}
+
+        # La clave la aporta quien despliega el sistema: la registrada en la
+        # configuracion del modelo o, en su defecto, la variable de entorno del
+        # proveedor. El sistema no distribuye credenciales propias.
+        try:
+            clave = clave_api(config, proveedor)
+        except CredencialAusente as falta_clave:
+            return JsonResponse({'error': str(falta_clave)}, status=409)
         
         if proveedor == 'Claude':
             headers = {
                 'Content-Type': 'application/json',
-                'x-api-key': config.api_key.strip(),
+                'x-api-key': clave,
                 'anthropic-version': config.anthropic_version.strip()
             }
             payload = {
@@ -1123,7 +1132,7 @@ def crear_comparacion_ia(request, id_comparacion):
         elif proveedor == 'OpenAI':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key.strip()}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name.strip(),
@@ -1141,7 +1150,7 @@ def crear_comparacion_ia(request, id_comparacion):
             headers = {
                 'Content-Type': 'application/json'
             }
-            endpoint_url = f"{config.endpoint_url.strip()}/{config.model_name.strip()}:generateContent?key={config.api_key.strip()}"
+            endpoint_url = f"{config.endpoint_url.strip()}/{config.model_name.strip()}:generateContent?key={clave}"
             payload = {
                 'contents': [
                     {
@@ -1161,7 +1170,7 @@ def crear_comparacion_ia(request, id_comparacion):
         elif proveedor == 'DeepSeek':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key.strip()}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name.strip(),
@@ -1178,17 +1187,6 @@ def crear_comparacion_ia(request, id_comparacion):
         inicio = time.time()
         
         url = endpoint_url if proveedor == 'Gemini' else config.endpoint_url.strip()
-
-        # === DEBUG TEMPORAL - eliminar después ===
-        print(f"=== DEBUG REQUEST ===")
-        print(f"Proveedor: {proveedor}")
-        print(f"URL: {url}")
-        print(f"Model: {payload.get('model')}")
-        print(f"API Key (primeros 20 chars): {config.api_key.strip()[:20]}...")
-        if proveedor == 'Claude':
-            print(f"anthropic-version: {config.anthropic_version.strip()}")
-        print(f"=====================")
-        # =========================================
         
         response = requests.post(
             url,
@@ -1200,12 +1198,6 @@ def crear_comparacion_ia(request, id_comparacion):
         tiempo_respuesta = time.time() - inicio
         
         if response.status_code != 200:
-            # === DEBUG ERROR ===
-            print(f"=== ERROR RESPUESTA ===")
-            print(f"Status: {response.status_code}")
-            print(f"Body: {response.text}")
-            print(f"======================")
-            # ==================
             return JsonResponse({
                 'error': f'Error de la API {proveedor}: {response.status_code}',
                 'detalle': response.text
@@ -2189,11 +2181,19 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
         # 6. Preparar headers y payload según el proveedor
         headers = {}
         payload = {}
+
+        # La clave la aporta quien despliega el sistema: la registrada en la
+        # configuracion del modelo o, en su defecto, la variable de entorno del
+        # proveedor. El sistema no distribuye credenciales propias.
+        try:
+            clave = clave_api(config, proveedor)
+        except CredencialAusente as falta_clave:
+            return JsonResponse({'error': str(falta_clave)}, status=409)
         
         if proveedor == 'Claude':
             headers = {
                 'Content-Type': 'application/json',
-                'x-api-key': config.api_key.strip(),
+                'x-api-key': clave,
                 'anthropic-version': config.anthropic_version.strip()
             }
             payload = {
@@ -2210,7 +2210,7 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
         elif proveedor == 'OpenAI':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
@@ -2229,7 +2229,7 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
                 'Content-Type': 'application/json'
             }
             # Gemini usa la API key en la URL
-            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={config.api_key}"
+            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={clave}"
             payload = {
                 'contents': [
                     {
@@ -2249,7 +2249,7 @@ def crear_comentario_eficiencia_individual(request, id_resultado_eficiencia):
         elif proveedor == 'DeepSeek':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
@@ -2626,12 +2626,20 @@ def crear_comparacion_grupal_ia(request, id_comparacion_grupal):
         # 8. Preparar headers y payload según el proveedor
         headers = {}
         payload = {}
+
+        # La clave la aporta quien despliega el sistema: la registrada en la
+        # configuracion del modelo o, en su defecto, la variable de entorno del
+        # proveedor. El sistema no distribuye credenciales propias.
+        try:
+            clave = clave_api(config, proveedor)
+        except CredencialAusente as falta_clave:
+            return JsonResponse({'error': str(falta_clave)}, status=409)
         endpoint_url = config.endpoint_url
         
         if proveedor == 'Claude':
             headers = {
                 'Content-Type': 'application/json',
-                'x-api-key': config.api_key,
+                'x-api-key': clave,
                 'anthropic-version': config.anthropic_version
             }
             payload = {
@@ -2648,7 +2656,7 @@ def crear_comparacion_grupal_ia(request, id_comparacion_grupal):
         elif proveedor == 'OpenAI':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
@@ -2666,7 +2674,7 @@ def crear_comparacion_grupal_ia(request, id_comparacion_grupal):
             headers = {
                 'Content-Type': 'application/json'
             }
-            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={config.api_key}"
+            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={clave}"
             payload = {
                 'contents': [
                     {
@@ -2686,7 +2694,7 @@ def crear_comparacion_grupal_ia(request, id_comparacion_grupal):
         elif proveedor == 'DeepSeek':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
@@ -3294,12 +3302,20 @@ def crear_comentario_eficiencia_grupal(request, id_resultado_eficiencia_grupal):
         # 9. Preparar headers y payload según el proveedor
         headers = {}
         payload = {}
+
+        # La clave la aporta quien despliega el sistema: la registrada en la
+        # configuracion del modelo o, en su defecto, la variable de entorno del
+        # proveedor. El sistema no distribuye credenciales propias.
+        try:
+            clave = clave_api(config, proveedor)
+        except CredencialAusente as falta_clave:
+            return JsonResponse({'error': str(falta_clave)}, status=409)
         endpoint_url = config.endpoint_url
         
         if proveedor == 'Claude':
             headers = {
                 'Content-Type': 'application/json',
-                'x-api-key': config.api_key,
+                'x-api-key': clave,
                 'anthropic-version': config.anthropic_version
             }
             payload = {
@@ -3316,7 +3332,7 @@ def crear_comentario_eficiencia_grupal(request, id_resultado_eficiencia_grupal):
         elif proveedor == 'OpenAI':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
@@ -3334,7 +3350,7 @@ def crear_comentario_eficiencia_grupal(request, id_resultado_eficiencia_grupal):
             headers = {
                 'Content-Type': 'application/json'
             }
-            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={config.api_key}"
+            endpoint_url = f"{config.endpoint_url}/{config.model_name}:generateContent?key={clave}"
             payload = {
                 'contents': [
                     {
@@ -3354,7 +3370,7 @@ def crear_comentario_eficiencia_grupal(request, id_resultado_eficiencia_grupal):
         elif proveedor == 'DeepSeek':
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {config.api_key}'
+                'Authorization': f'Bearer {clave}'
             }
             payload = {
                 'model': config.model_name,
